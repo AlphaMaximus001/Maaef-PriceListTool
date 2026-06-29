@@ -9,7 +9,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+# Use `npm ci` when a lockfile is present (reproducible); fall back to install.
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 # ---- build ----
 FROM base AS build
