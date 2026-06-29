@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Maaef design system mapped to shadcn tokens.
+       Primary = Maaef Red #8B0000; ink near-black; blush as muted accent. */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%; /* #1A1A1A near-black */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 0 100% 27%; /* #8B0000 Maaef Red */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 288 26% 14%; /* #2B1B2E deep purple */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 350 50% 92%; /* near #F4E1E4 blush */
+    --muted-foreground: 0 0% 40%;
+
+    --accent: 350 50% 92%;
+    --accent-foreground: 288 26% 14%;
+
+    --destructive: 0 84% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 350 20% 86%;
+    --input: 350 20% 86%;
+    --ring: 0 100% 27%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 288 26% 10%;
+    --foreground: 0 0% 96%;
+    --card: 288 26% 12%;
+    --card-foreground: 0 0% 96%;
+    --popover: 288 26% 12%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 0 70% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 288 20% 22%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 288 14% 22%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 288 14% 24%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 288 14% 24%;
+    --input: 288 14% 24%;
+    --ring: 0 70% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
