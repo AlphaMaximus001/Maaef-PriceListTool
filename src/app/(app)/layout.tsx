@@ -18,9 +18,9 @@ export default async function AppLayout({
   const items: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
     { href: "/lists", label: "Lists", icon: "lists" },
-    { href: "/overlap", label: "Undercut radar", icon: "overlap", comingSoon: true },
-    { href: "/unique", label: "Pricing power", icon: "unique", comingSoon: true },
-    { href: "/matches", label: "Match review", icon: "matches", comingSoon: true },
+    { href: "/overlap", label: "Undercut radar", icon: "overlap" },
+    { href: "/unique", label: "Pricing power", icon: "unique" },
+    { href: "/matches", label: "Match review", icon: "matches" },
     { href: "/configurator", label: "Configurator", icon: "configurator", comingSoon: true },
     { href: "/history", label: "Edit history", icon: "history", comingSoon: true },
     ...(can.manage_users

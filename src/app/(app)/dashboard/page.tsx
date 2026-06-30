@@ -24,8 +24,8 @@ const CAP_LABELS: Record<Capability, string> = {
 const PHASES = [
   { n: 1, name: "Auth + permissions + Admin", status: "live" },
   { n: 2, name: "Intake + list display", status: "live" },
-  { n: 3, name: "Matching + overlap / unique views", status: "next" },
-  { n: 4, name: "Edit engine + audit + undercut guard", status: "planned" },
+  { n: 3, name: "Matching + overlap / unique views", status: "live" },
+  { n: 4, name: "Edit engine + audit + undercut guard", status: "next" },
   { n: 5, name: "SKU configurator", status: "planned" },
   { n: 6, name: "Branded PDF export", status: "planned" },
 ] as const;
