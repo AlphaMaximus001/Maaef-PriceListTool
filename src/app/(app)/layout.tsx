@@ -21,7 +21,7 @@ export default async function AppLayout({
     { href: "/overlap", label: "Undercut radar", icon: "overlap" },
     { href: "/unique", label: "Pricing power", icon: "unique" },
     { href: "/matches", label: "Match review", icon: "matches" },
-    { href: "/configurator", label: "Configurator", icon: "configurator", comingSoon: true },
+    { href: "/configurator", label: "Configurator", icon: "configurator" },
     { href: "/history", label: "Edit history", icon: "history" },
     ...(can.manage_users
       ? [{ href: "/admin", label: "Admin", icon: "admin" as const }]

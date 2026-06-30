@@ -21,14 +21,14 @@ const CAP_LABELS: Record<Capability, string> = {
   manage_users: "Manage users",
 };
 
-const PHASES = [
+const PHASES: { n: number; name: string; status: "live" | "next" | "planned" }[] = [
   { n: 1, name: "Auth + permissions + Admin", status: "live" },
   { n: 2, name: "Intake + list display", status: "live" },
   { n: 3, name: "Matching + overlap / unique views", status: "live" },
   { n: 4, name: "Edit engine + audit + undercut guard", status: "live" },
-  { n: 5, name: "SKU configurator", status: "next" },
-  { n: 6, name: "Branded PDF export", status: "planned" },
-] as const;
+  { n: 5, name: "SKU configurator", status: "live" },
+  { n: 6, name: "Branded PDF export", status: "next" },
+];
 
 export default async function DashboardPage() {
   const { profile, can } = await requireSession();
