@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { CompetitorGrid, type CompetitorRow } from "./competitor-grid";
+import { ExportPdfButton } from "@/components/export-pdf-button";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function CompetitorListPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireSession();
+  const { can } = await requireSession();
   const { id } = await params;
   const supabase = await createClient();
 
@@ -44,20 +45,25 @@ export default async function CompetitorListPage({
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="icon">
-            <Link href="/lists">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{list.name}</h1>
-          <Badge variant="muted">Read-only</Badge>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/lists">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-semibold tracking-tight">{list.name}</h1>
+            <Badge variant="muted">Read-only</Badge>
+          </div>
+          <p className="ml-10 mt-1 text-muted-foreground">
+            {competitorName} · {rows.length} items · uploaded{" "}
+            {new Date(list.uploaded_at).toLocaleDateString()}
+          </p>
         </div>
-        <p className="ml-10 mt-1 text-muted-foreground">
-          {competitorName} · {rows.length} items · uploaded{" "}
-          {new Date(list.uploaded_at).toLocaleDateString()}
-        </p>
+        {can.export_pdf && (
+          <ExportPdfButton href={`/api/export/competitor/${id}`} filename="maaef-competitor-list.pdf" />
+        )}
       </div>
 
       <CompetitorGrid rows={rows} />

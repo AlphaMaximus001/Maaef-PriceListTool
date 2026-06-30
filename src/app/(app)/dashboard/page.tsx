@@ -27,7 +27,7 @@ const PHASES: { n: number; name: string; status: "live" | "next" | "planned" }[]
   { n: 3, name: "Matching + overlap / unique views", status: "live" },
   { n: 4, name: "Edit engine + audit + undercut guard", status: "live" },
   { n: 5, name: "SKU configurator", status: "live" },
-  { n: 6, name: "Branded PDF export", status: "next" },
+  { n: 6, name: "Branded PDF export", status: "live" },
 ];
 
 export default async function DashboardPage() {

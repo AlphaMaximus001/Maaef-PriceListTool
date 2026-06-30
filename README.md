@@ -23,39 +23,45 @@ source of truth.
 | PDF | Playwright, HTML→PDF *(phase 6)* |
 | Hosting | Single persistent container on **Render** |
 
-## Build phases
+## Build phases — all shipped ✅
 
-1. **Auth + permissions + Admin page** ✅ (this phase)
-2. Intake + display — _next_
-3. Matching + overlap / unique views
-4. Edit engine + audit + undercut guard
-5. SKU configurator
-6. Branded PDF export
+1. **Auth + permissions + Admin page**
+2. **Intake + display**
+3. **Matching + overlap / unique views**
+4. **Edit engine + audit + undercut guard**
+5. **SKU configurator**
+6. **Branded PDF export**
 
-Each phase ships working before the next starts.
+## What's built
 
-## What's built now (Phase 1)
-
-- Supabase email/password auth; middleware-guarded routes.
-- The full database schema (`supabase/migrations/`): tables, RLS, the
-  `has_capability()` resolver, the `v_overlap` / `v_unique` views, and the
-  capability/role seed.
-- The **capability system** — every gate resolves through `has_capability()`
-  (invariant 5). Per-person grant beats role default.
-- The **Admin page** — create/deactivate users, set roles, and grant/retract
-  individual capabilities per person. Server actions re-check capability
-  server-side; RLS enforces it at the database boundary too.
-- App shell with the §8 screen roadmap (later screens shown as locked).
+- **Auth + permissions** — Supabase email/password, middleware-guarded routes;
+  every gate resolves through `has_capability()` (invariant 5, per-person grant
+  beats role default); **Admin page** for users / roles / per-person grants.
+- **Intake + display** — SheetJS parsing of the two standardized templates
+  (validated, never guessed), originals archived to Storage, lists directory,
+  read-only competitor grids, and the editable my-list AG Grid with the cost
+  column gated.
+- **Matching + views** — deterministic matcher (spec-key → token-set fuzzy);
+  match-review screen (the only place `confirmed` is set); the undercut radar
+  (`v_overlap`) and pricing-power (`v_unique`) screens.
+- **Edit engine** — single/category/list × percentage/flat/set; preview-then-
+  apply; audit trail (`price_edits`); **undercut guard** enforced inside the DB;
+  undo (single + batch); Edit-history screen.
+- **Configurator** — SKU detail, spec add-on toggles, live price, guarded save.
+- **PDF export** — Playwright-rendered branded A5 list, gated by `export_pdf`.
 
 ### Invariants honored
 
-- **Cost is private & isolated.** `product_costs` is a separate table, readable
-  only with `view_cost` (RLS). No non-`view_cost` path can read it.
-- **Capabilities resolve through `has_capability()`** — UI and server both use
-  it; the Admin page is the single source of truth.
-- The audit (`price_edits`), read-only competitor data, never-silent matching,
-  and the undercut guard are wired into the schema/RLS now; their UIs land in
-  phases 3–4.
+- **Cost is private & isolated.** `product_costs` is RLS-locked to `view_cost`.
+  The undercut guard runs inside the DB (`mutate_prices` / `save_configuration`)
+  so the floor is enforced for non-`view_cost` users **without the cost number
+  ever leaving the database**. No screen, query, export, or API response
+  reachable without `view_cost` contains cost. The PDF never includes it.
+- **Matching is never silent** — only `confirmed` matches feed the overlap view.
+- **Competitor data is read-only** — insert-only, no edit path.
+- **Every price change is logged & reversible** — `price_edits` + undo.
+- **Capabilities resolve through `has_capability()`** — UI and server both;
+  Admin page is the single source of truth.
 
 ## Local setup
 
@@ -91,6 +97,18 @@ npm run dev          # http://localhost:3000
 npm run typecheck    # strict TS, no emit
 npm run build        # production build (standalone)
 ```
+
+### PDF export (Playwright)
+
+The branded A5 export uses Playwright + Chromium. For local dev, install the
+browser once:
+
+```bash
+npx playwright install chromium
+```
+
+The Render image installs it during the Docker build. If Chromium is
+pre-provisioned at a fixed path, point `CHROMIUM_EXECUTABLE_PATH` at it instead.
 
 ## Deploy (Render)
 

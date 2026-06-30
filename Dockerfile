@@ -27,12 +27,22 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Keep Playwright's browser inside the image at a stable path.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
 
 COPY --from=build /app/public ./public
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Playwright is a server-external package, so it lives in node_modules, not the
+# bundle — copy it plus its standalone trace, then install Chromium + OS deps.
+COPY --from=build /app/node_modules/playwright ./node_modules/playwright
+COPY --from=build /app/node_modules/playwright-core ./node_modules/playwright-core
+
+RUN npx --yes playwright install --with-deps chromium \
+  && chown -R nextjs:nodejs /opt/pw-browsers
 
 USER nextjs
 EXPOSE 3000

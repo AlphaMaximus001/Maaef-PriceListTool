@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { type MyProductRow } from "./my-grid";
 import { MyListClient } from "./my-list-client";
+import { ExportPdfButton } from "@/components/export-pdf-button";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,9 @@ export default async function MyListPage() {
             {can.view_cost ? " Cost is visible to you only." : ""}
           </p>
         </div>
+        {can.export_pdf && (
+          <ExportPdfButton href="/api/export/my/list" filename="maaef-products.pdf" />
+        )}
       </div>
 
       <MyListClient
