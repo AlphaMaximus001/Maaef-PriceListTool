@@ -21,6 +21,8 @@
     "@radix-ui/react-tooltip": "^1.1.4",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.46.1",
+    "ag-grid-community": "^36.0.0",
+    "ag-grid-react": "^36.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.460.0",
@@ -29,7 +31,8 @@
     "react-dom": "^19.0.0",
     "sonner": "^1.7.0",
     "tailwind-merge": "^2.5.4",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

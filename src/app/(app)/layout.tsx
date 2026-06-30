@@ -17,7 +17,7 @@ export default async function AppLayout({
   // comingSoon; Admin is gated by manage_users (invariant 5 — resolver, not role).
   const items: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-    { href: "/lists", label: "Lists", icon: "lists", comingSoon: true },
+    { href: "/lists", label: "Lists", icon: "lists" },
     { href: "/overlap", label: "Undercut radar", icon: "overlap", comingSoon: true },
     { href: "/unique", label: "Pricing power", icon: "unique", comingSoon: true },
     { href: "/matches", label: "Match review", icon: "matches", comingSoon: true },
