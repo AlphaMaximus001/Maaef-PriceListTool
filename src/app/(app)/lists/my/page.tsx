@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
-import { MyProductsGrid, type MyProductRow } from "./my-grid";
+import { type MyProductRow } from "./my-grid";
+import { MyListClient } from "./my-list-client";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,8 @@ export default async function MyListPage() {
     cost: can.view_cost ? costByProduct.get(p.id) ?? null : undefined,
   }));
 
+  const categories = Array.from(new Set(rows.map((r) => r.category))).sort();
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -57,7 +60,13 @@ export default async function MyListPage() {
         </div>
       </div>
 
-      <MyProductsGrid rows={rows} showCost={can.view_cost} />
+      <MyListClient
+        rows={rows}
+        categories={categories}
+        showCost={can.view_cost}
+        canEditSingle={can.edit_price}
+        canBulk={can.bulk_edit}
+      />
 
       {!can.edit_price && !can.bulk_edit && (
         <p className="text-xs text-muted-foreground">
