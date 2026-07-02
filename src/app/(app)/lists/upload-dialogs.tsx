@@ -3,7 +3,12 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { Upload, Download } from "lucide-react";
-import { uploadCompetitorList, uploadMyProducts, type UploadResult } from "./actions";
+import {
+  uploadCompetitorList,
+  uploadMyProducts,
+  uploadUnifiedInventory,
+  type UploadResult,
+} from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +48,71 @@ function ResultNotes({ result }: { result: UploadResult | null }) {
         </ul>
       ) : null}
     </div>
+  );
+}
+
+export function UploadUnifiedDialog() {
+  const [open, setOpen] = React.useState(false);
+  const [pending, start] = React.useTransition();
+  const [result, setResult] = React.useState<UploadResult | null>(null);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setResult(null); }}>
+      <DialogTrigger asChild>
+        <Button>
+          <Upload className="h-4 w-4" /> Import inventory
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <form
+          action={(fd) =>
+            start(async () => {
+              const r = await uploadUnifiedInventory(fd);
+              setResult(r);
+              if (r.ok) {
+                toast.success(r.message);
+                setOpen(false);
+              } else toast.error(r.message);
+            })
+          }
+        >
+          <DialogHeader>
+            <DialogTitle>Import unified inventory</DialogTitle>
+            <DialogDescription>
+              One wide sheet with your rate and each competitor&apos;s rate per row
+              (e.g. Maaef / Smas / Chandra). Creates your products, each competitor
+              list, and confirms the overlaps in one pass.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <a
+              href="/api/templates/unified"
+              className="inline-flex items-center gap-1.5 text-sm text-maaef-red hover:underline"
+            >
+              <Download className="h-3.5 w-3.5" /> Download the unified template
+            </a>
+            <div className="space-y-2">
+              <Label htmlFor="my-brand">Your brand column</Label>
+              <Input id="my-brand" name="my_brand" defaultValue="Maaef" />
+              <p className="text-xs text-muted-foreground">
+                The <code>&lt;brand&gt; Rate</code> column that is yours. Every other
+                <code> Rate</code> column is treated as a competitor.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="uni-file">Spreadsheet (.xlsx)</Label>
+              <Input id="uni-file" name="file" type="file" accept=".xlsx,.xls,.csv" required />
+            </div>
+            <ResultNotes result={result} />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Importing…" : "Import inventory"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

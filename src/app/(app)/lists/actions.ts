@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/capabilities";
 import { parseWorkbook } from "@/lib/templates";
+import { parseUnifiedWorkbook, DEFAULT_MY_BRAND } from "@/lib/unified";
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 
 export type UploadResult = {
   ok: boolean;
@@ -193,5 +200,160 @@ export async function uploadMyProducts(formData: FormData): Promise<UploadResult
     message: `Imported ${upserts.length} products${edits.length ? ` (${edits.length} price changes logged)` : ""}.`,
     warnings: parsed.warnings,
     inserted: upserts.length,
+  };
+}
+
+/**
+ * Unified inventory import — the wide, pre-matched Maaef format. One upload:
+ *   - upserts my_products for rows with a Maaef rate (SKUs synthesized),
+ *   - creates one snapshot list per competitor brand + their items,
+ *   - links same-row overlaps as CONFIRMED matches (the row alignment is the
+ *     human judgment), so the undercut radar populates immediately.
+ * Competitor-only rows land in the market-gap view via having no match.
+ */
+export async function uploadUnifiedInventory(formData: FormData): Promise<UploadResult> {
+  const session = await requireCapability("bulk_edit");
+  if (!session.can.upload_competitor) {
+    return { ok: false, message: "You also need the upload-competitor capability to import competitor rates." };
+  }
+  const supabase = await createClient();
+
+  const file = formData.get("file");
+  const myBrand = String(formData.get("my_brand") || DEFAULT_MY_BRAND).trim() || DEFAULT_MY_BRAND;
+  if (!(file instanceof File) || file.size === 0) return { ok: false, message: "Choose a file to upload." };
+
+  const parsed = parseUnifiedWorkbook(await file.arrayBuffer(), myBrand);
+  if (!parsed.ok) {
+    return { ok: false, message: "The file doesn't match the unified inventory format.", errors: parsed.errors };
+  }
+
+  const stamp = new Date();
+  const archivePath = await archiveOriginal(supabase, file, "unified");
+
+  // 1) Upsert my products (rows priced for the my-brand).
+  const myUpserts = parsed.rows
+    .filter((r) => r.myPrice !== null)
+    .map((r) => ({
+      sku: r.mySku,
+      product_name: r.name,
+      category: r.category,
+      specs: r.specs,
+      spec_key: r.spec_key,
+      price: r.myPrice as number,
+      currency: "INR",
+      active: true,
+    }));
+
+  for (const c of chunk(myUpserts, 500)) {
+    const { error } = await supabase.from("my_products").upsert(c, { onConflict: "sku" });
+    if (error) return { ok: false, message: `Products import failed: ${error.message}` };
+  }
+
+  // Map my SKU -> id.
+  const mySkuToId = new Map<string, string>();
+  for (const c of chunk(myUpserts.map((u) => u.sku), 500)) {
+    const { data } = await supabase.from("my_products").select("id, sku").in("sku", c);
+    for (const p of data ?? []) mySkuToId.set(p.sku, p.id);
+  }
+
+  // 2) Per competitor brand: snapshot list + items, then confirmed matches.
+  const matchRows: {
+    my_product_id: string;
+    competitor_item_id: string;
+    confidence: number;
+    method: "manual";
+    confirmed: boolean;
+    rejected: boolean;
+    confirmed_by: string;
+    confirmed_at: string;
+  }[] = [];
+  let competitorItemCount = 0;
+
+  for (const brand of parsed.competitorBrands) {
+    // Ensure the competitor exists.
+    const { data: comp, error: compErr } = await supabase
+      .from("competitors")
+      .upsert({ name: brand }, { onConflict: "name" })
+      .select("id")
+      .single();
+    if (compErr || !comp) return { ok: false, message: `Competitor "${brand}": ${compErr?.message}` };
+
+    const brandRows = parsed.rows
+      .map((r) => ({ r, cp: r.competitorPrices.find((c) => c.brand === brand) }))
+      .filter((x) => x.cp);
+
+    const { data: list, error: listErr } = await supabase
+      .from("competitor_lists")
+      .insert({
+        competitor_id: comp.id,
+        name: `${brand} — inventory ${stamp.toLocaleDateString("en-IN")}`,
+        source_file: archivePath,
+        row_count: brandRows.length,
+      })
+      .select("id")
+      .single();
+    if (listErr || !list) return { ok: false, message: `List for "${brand}": ${listErr?.message}` };
+
+    const items = brandRows.map(({ r, cp }) => ({
+      list_id: list.id,
+      sku: cp!.sku,
+      product_name: r.name,
+      category: r.category,
+      specs: r.specs,
+      spec_key: r.spec_key,
+      price: cp!.price,
+      currency: "INR",
+    }));
+    for (const c of chunk(items, 500)) {
+      const { error } = await supabase.from("competitor_items").insert(c);
+      if (error) return { ok: false, message: `Items for "${brand}": ${error.message}` };
+    }
+    competitorItemCount += items.length;
+
+    // Map this brand's item SKU -> id (SKUs are unique within the list).
+    const itemSkuToId = new Map<string, string>();
+    const { data: savedItems } = await supabase
+      .from("competitor_items")
+      .select("id, sku")
+      .eq("list_id", list.id);
+    for (const it of savedItems ?? []) if (it.sku) itemSkuToId.set(it.sku, it.id);
+
+    // Confirmed matches for same-row overlaps (only where the my-brand is priced).
+    for (const { r, cp } of brandRows) {
+      if (r.myPrice === null) continue;
+      const myId = mySkuToId.get(r.mySku);
+      const itemId = itemSkuToId.get(cp!.sku);
+      if (myId && itemId) {
+        matchRows.push({
+          my_product_id: myId,
+          competitor_item_id: itemId,
+          confidence: 1,
+          method: "manual",
+          confirmed: true,
+          rejected: false,
+          confirmed_by: session.profile.id,
+          confirmed_at: stamp.toISOString(),
+        });
+      }
+    }
+  }
+
+  for (const c of chunk(matchRows, 500)) {
+    const { error } = await supabase
+      .from("product_matches")
+      .upsert(c, { onConflict: "my_product_id,competitor_item_id", ignoreDuplicates: true });
+    if (error) return { ok: false, message: `Matches failed: ${error.message}` };
+  }
+
+  revalidatePath("/lists");
+  revalidatePath("/lists/my");
+  revalidatePath("/overlap");
+  revalidatePath("/unique");
+  revalidatePath("/market-gap");
+  return {
+    ok: true,
+    message: `Imported ${myUpserts.length} Maaef products, ${competitorItemCount} competitor items, and ${matchRows.length} confirmed overlaps across ${parsed.competitorBrands.join(", ")}.`,
+    warnings: parsed.warnings,
+    inserted: myUpserts.length,
   };
 }

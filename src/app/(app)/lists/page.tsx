@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileSpreadsheet, Store, ArrowRight } from "lucide-react";
-import { UploadCompetitorDialog, UploadMyProductsDialog } from "./upload-dialogs";
+import { UploadCompetitorDialog, UploadMyProductsDialog, UploadUnifiedDialog } from "./upload-dialogs";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,8 @@ export default async function ListsPage() {
             Your list is the one you edit. Competitor lists are reference — read-only.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {can.bulk_edit && can.upload_competitor && <UploadUnifiedDialog />}
           {can.bulk_edit && <UploadMyProductsDialog />}
           {can.upload_competitor && (
             <UploadCompetitorDialog competitors={competitors ?? []} />
