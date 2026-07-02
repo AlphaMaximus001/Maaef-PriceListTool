@@ -66,9 +66,17 @@ export type ParseResult = {
 const norm = (s: unknown) => String(s ?? "").trim();
 const normKey = (s: unknown) => norm(s).toLowerCase().replace(/\s+/g, " ");
 
-/** Normalize a value into a stable matching key fragment. */
+/**
+ * Normalize a value into a stable matching key fragment. Unicode-aware: keeps
+ * letters/digits of ANY script (Devanagari/Hindi included) — a plain [a-z0-9]
+ * filter would delete Hindi text entirely and collapse those products together.
+ */
 function normalizeForKey(s: string) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  return s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, " ") // keep marks so Devanagari aksharas stay whole
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
 /**

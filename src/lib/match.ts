@@ -6,9 +6,10 @@
  */
 
 function tokenize(s: string): string[] {
+  // Unicode-aware: keep letters/digits of any script (Hindi/Devanagari too).
   return s
     .toLowerCase()
-    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/[^\p{L}\p{N}\p{M}\s]+/gu, " ") // keep marks so Devanagari aksharas stay whole
     .split(/\s+/)
     .filter(Boolean);
 }

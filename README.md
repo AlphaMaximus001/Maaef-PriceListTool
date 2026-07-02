@@ -41,6 +41,13 @@ source of truth.
   (validated, never guessed), originals archived to Storage, lists directory,
   read-only competitor grids, and the editable my-list AG Grid with the cost
   column gated.
+- **Unified inventory import** — the wide, pre-matched Maaef format (one row per
+  product with your rate + each competitor's rate side by side, e.g.
+  Maaef/Smas/Chandra). One upload creates your products, each competitor's list,
+  and confirms the same-row overlaps in a single pass. Handles Hindi/Devanagari
+  (Unicode-safe keys) and synthesizes stable SKUs where the sheet has none.
+  Competitor-only rows surface in the **Market gap** screen ("they sell, you
+  don't").
 - **Matching + views** — deterministic matcher (spec-key → token-set fuzzy);
   match-review screen (the only place `confirmed` is set); the undercut radar
   (`v_overlap`) and pricing-power (`v_unique`) screens.

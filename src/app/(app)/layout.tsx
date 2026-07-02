@@ -20,6 +20,7 @@ export default async function AppLayout({
     { href: "/lists", label: "Lists", icon: "lists" },
     { href: "/overlap", label: "Undercut radar", icon: "overlap" },
     { href: "/unique", label: "Pricing power", icon: "unique" },
+    { href: "/market-gap", label: "Market gap", icon: "gap" },
     { href: "/matches", label: "Match review", icon: "matches" },
     { href: "/configurator", label: "Configurator", icon: "configurator" },
     { href: "/history", label: "Edit history", icon: "history" },
