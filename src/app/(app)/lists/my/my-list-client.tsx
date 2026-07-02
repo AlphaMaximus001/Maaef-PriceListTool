@@ -56,6 +56,13 @@ export function MyListClient({
   const [value, setValue] = React.useState("");
   const [category, setCategory] = React.useState(categories[0] ?? "");
 
+  // "Jump to category" view filter — independent of the edit-scope category.
+  const [viewCategory, setViewCategory] = React.useState<string>("all");
+  const visibleRows = React.useMemo(
+    () => (viewCategory === "all" ? rows : rows.filter((r) => r.category === viewCategory)),
+    [rows, viewCategory],
+  );
+
   const [pending, start] = React.useTransition();
   const [preview, setPreview] = React.useState<EditResult | null>(null);
   const [pendingInput, setPendingInput] = React.useState<EditInput | null>(null);
@@ -214,8 +221,30 @@ export function MyListClient({
         </Card>
       )}
 
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="text-sm font-medium text-muted-foreground">Show category</label>
+        <Select value={viewCategory} onValueChange={setViewCategory}>
+          <SelectTrigger className="w-72">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories ({rows.length})</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground">
+          {viewCategory === "all"
+            ? `${categories.length} categories`
+            : `${visibleRows.length} product${visibleRows.length === 1 ? "" : "s"}`}
+        </span>
+      </div>
+
       <MyProductsGrid
-        rows={rows}
+        rows={visibleRows}
         showCost={showCost}
         editable={editable}
         onSelectionChanged={setSelectedIds}
