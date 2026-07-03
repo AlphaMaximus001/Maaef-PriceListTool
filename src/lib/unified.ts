@@ -71,10 +71,51 @@ function hashCode(s: string): string {
   return (h >>> 0).toString(36).slice(0, 6);
 }
 
-function skuFor(brand: string, category: string | null, siNo: string, name: string): string {
+function skuFor(brand: string, catOrder: number, siNo: string, name: string): string {
   const prefix = brand.replace(/[^a-zA-Z0-9]+/g, "").slice(0, 5).toUpperCase() || "ITEM";
   const idPart = siNo || hashCode(name);
-  return `${prefix}-${hashCode(category ?? "")}-${idPart}`;
+  // Readable + stable: brand + category number (from the sheet's Categories tab)
+  // + the row serial, e.g. MAAEF-C6-2.
+  return `${prefix}-C${catOrder}-${idPart}`;
+}
+
+/**
+ * Read the workbook's "Categories" (or "Summary") tab to map each category name
+ * to its canonical order number, so SKUs read MAAEF-C6-… . Falls back to
+ * first-seen order for any category not listed there.
+ */
+function buildCategoryOrder(wb: XLSX.WorkBook): Map<string, number> {
+  const map = new Map<string, number>();
+  const sheetName =
+    wb.SheetNames.find((n) => n.toLowerCase() === "categories") ??
+    wb.SheetNames.find((n) => n.toLowerCase() === "summary");
+  if (!sheetName) return map;
+
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[sheetName], { defval: "" });
+  for (const r of rows) {
+    const keys = Object.keys(r);
+    const catKey = keys.find((k) => k.trim().toLowerCase() === "category");
+    const ordKey = keys.find((k) => ["order", "category_order"].includes(k.trim().toLowerCase()));
+    if (!catKey) continue;
+    const cat = norm(r[catKey]);
+    const ord = ordKey ? Number(norm(r[ordKey])) : NaN;
+    if (cat && Number.isFinite(ord)) map.set(cat, ord);
+  }
+  return map;
+}
+
+function makeOrderResolver(known: Map<string, number>): (category: string | null) => number {
+  let nextFallback = 1;
+  for (const v of known.values()) nextFallback = Math.max(nextFallback, v + 1);
+  const cache = new Map<string, number>();
+  return (category) => {
+    const key = category ?? "";
+    const cached = cache.get(key);
+    if (cached !== undefined) return cached;
+    const order = known.get(key) ?? nextFallback++;
+    cache.set(key, order);
+    return order;
+  };
 }
 
 function resolveHeader(detected: string): string | null {
@@ -148,6 +189,9 @@ export function parseUnifiedWorkbook(
   const competitorCols = brandCols.filter((b) => b !== myBrandCol);
   const competitorBrands = competitorCols.map((b) => b.brand);
 
+  // Category -> order number (from the Categories tab) for readable SKUs.
+  const orderFor = makeOrderResolver(buildCategoryOrder(wb));
+
   const rows: UnifiedRow[] = [];
   for (let r = 1; r < matrix.length; r++) {
     const row = matrix[r] as unknown[];
@@ -166,7 +210,8 @@ export function parseUnifiedWorkbook(
     if (formNo) specs["form_no"] = formNo;
 
     const spec_key = computeSpecKey(category, specs, "");
-    const mySku = skuFor(myBrand, category, siNo, name);
+    const catOrder = orderFor(category);
+    const mySku = skuFor(myBrand, catOrder, siNo, name);
 
     const myPrice = myBrandCol ? toNumber(row[myBrandCol.index]) : null;
 
@@ -174,7 +219,7 @@ export function parseUnifiedWorkbook(
     for (const c of competitorCols) {
       const price = toNumber(row[c.index]);
       if (price !== null) {
-        competitorPrices.push({ brand: c.brand, sku: skuFor(c.brand, category, siNo, name), price });
+        competitorPrices.push({ brand: c.brand, sku: skuFor(c.brand, catOrder, siNo, name), price });
       }
     }
 
