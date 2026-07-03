@@ -5,6 +5,7 @@
   "description": "Maaef Competitive Pricing Dashboard — price-positioning tool (overlap/undercut radar + pricing power).",
   "scripts": {
     "dev": "next dev",
+    "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
     "lint": "next lint",

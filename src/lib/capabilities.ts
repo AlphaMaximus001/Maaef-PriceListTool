@@ -56,21 +56,26 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   if (!profile || !profile.active) return null;
 
-  // Resolve all capabilities in one round trip through has_capability().
-  const can = Object.fromEntries(
-    CAPABILITIES.map((c) => [c, false]),
-  ) as Record<Capability, boolean>;
+  // Resolve every capability in TWO parallel queries (role defaults + the user's
+  // overrides) and combine in JS — same rule as the DB has_capability()
+  // resolver (per-person override beats role default, else deny), but without a
+  // network round-trip per capability. This runs on every navigation, so the
+  // round-trip count matters.
+  const [{ data: defaults }, { data: grants }] = await Promise.all([
+    supabase.from("role_defaults").select("capability_key, granted").eq("role", profile.role),
+    supabase.from("capability_grants").select("capability_key, granted").eq("user_id", user.id),
+  ]);
 
-  const results = await Promise.all(
-    CAPABILITIES.map(async (cap) => {
-      const { data } = await supabase.rpc("has_capability", {
-        uid: user.id,
-        cap,
-      });
-      return [cap, data === true] as const;
+  const defaultMap = new Map((defaults ?? []).map((d) => [d.capability_key, d.granted]));
+  const overrideMap = new Map((grants ?? []).map((g) => [g.capability_key, g.granted]));
+
+  const can = Object.fromEntries(
+    CAPABILITIES.map((cap) => {
+      const override = overrideMap.get(cap);
+      const value = override !== undefined ? override : defaultMap.get(cap) ?? false;
+      return [cap, value === true];
     }),
-  );
-  for (const [cap, granted] of results) can[cap] = granted;
+  ) as Record<Capability, boolean>;
 
   return { profile: profile as Profile, can };
 });
