@@ -43,41 +43,19 @@ export type Session = {
 export const getSession = cache(async (): Promise<Session | null> => {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // ONE round trip: current_session() resolves the profile + every capability
+  // server-side from the request's JWT (validated by PostgREST). No separate
+  // auth call, profile query, or per-capability RPC. This runs on every
+  // navigation, so the round-trip count is what matters for perceived speed.
+  const { data } = await supabase.rpc("current_session");
+  if (!data) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, role, active")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !profile.active) return null;
-
-  // Resolve every capability in TWO parallel queries (role defaults + the user's
-  // overrides) and combine in JS — same rule as the DB has_capability()
-  // resolver (per-person override beats role default, else deny), but without a
-  // network round-trip per capability. This runs on every navigation, so the
-  // round-trip count matters.
-  const [{ data: defaults }, { data: grants }] = await Promise.all([
-    supabase.from("role_defaults").select("capability_key, granted").eq("role", profile.role),
-    supabase.from("capability_grants").select("capability_key, granted").eq("user_id", user.id),
-  ]);
-
-  const defaultMap = new Map((defaults ?? []).map((d) => [d.capability_key, d.granted]));
-  const overrideMap = new Map((grants ?? []).map((g) => [g.capability_key, g.granted]));
-
+  const payload = data as { profile: Profile; can: Partial<Record<Capability, boolean>> };
   const can = Object.fromEntries(
-    CAPABILITIES.map((cap) => {
-      const override = overrideMap.get(cap);
-      const value = override !== undefined ? override : defaultMap.get(cap) ?? false;
-      return [cap, value === true];
-    }),
+    CAPABILITIES.map((cap) => [cap, payload.can?.[cap] === true]),
   ) as Record<Capability, boolean>;
 
-  return { profile: profile as Profile, can };
+  return { profile: payload.profile, can };
 });
 
 /** Throws if there is no session at all (route should already be guarded). */
