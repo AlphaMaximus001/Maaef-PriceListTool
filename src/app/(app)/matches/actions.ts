@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/capabilities";
+import { getCurrentListId } from "@/lib/lists";
 import { tokenSetRatio, FUZZY_THRESHOLD } from "@/lib/match";
 
 export type MatchActionResult = { ok: boolean; message: string };
@@ -17,9 +18,15 @@ const MAX_FUZZY_PER_PRODUCT = 5;
 export async function runMatcher(): Promise<MatchActionResult> {
   await requireCapability("confirm_match");
   const supabase = await createClient();
+  const listId = await getCurrentListId();
+  if (!listId) return { ok: false, message: "No list selected." };
 
   const [{ data: products }, { data: items }, { data: existing }] = await Promise.all([
-    supabase.from("my_products").select("id, product_name, category, spec_key").eq("active", true),
+    supabase
+      .from("my_products")
+      .select("id, product_name, category, spec_key")
+      .eq("active", true)
+      .eq("list_id", listId),
     supabase.from("competitor_items").select("id, product_name, category, spec_key"),
     supabase.from("product_matches").select("my_product_id, competitor_item_id"),
   ]);

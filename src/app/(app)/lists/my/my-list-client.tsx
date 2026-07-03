@@ -4,6 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Calculator, AlertTriangle } from "lucide-react";
+import { Lock } from "lucide-react";
+import type { PriceList } from "@/lib/lists";
 import { MyProductsGrid, type MyProductRow } from "./my-grid";
 import {
   previewEdit,
@@ -13,8 +15,11 @@ import {
   type EditScope,
   type EditOperation,
 } from "./edit-actions";
+import { createVersionAndEdit } from "../list-actions";
+import { ListVersionBar } from "./list-version-bar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -40,15 +45,26 @@ export function MyListClient({
   showCost,
   canEditSingle,
   canBulk,
+  currentList,
+  lists,
+  locked,
 }: {
   rows: MyProductRow[];
   categories: string[];
   showCost: boolean;
   canEditSingle: boolean;
   canBulk: boolean;
+  currentList: PriceList;
+  lists: PriceList[];
+  locked: boolean;
 }) {
   const router = useRouter();
   const editable = canEditSingle || canBulk;
+
+  // When the current list is locked, an edit doesn't apply — it opens a dialog
+  // to name a new version, which is created with the edit applied.
+  const [versionEdit, setVersionEdit] = React.useState<EditInput | null>(null);
+  const [versionName, setVersionName] = React.useState("");
 
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [scope, setScope] = React.useState<EditScope>(canBulk ? "category" : "single");
@@ -79,10 +95,20 @@ export function MyListClient({
     return { scope, operation, value: v };
   };
 
+  // Locked list: any edit becomes "name a new version" instead of applying.
+  const openVersionPrompt = (input: EditInput) => {
+    setVersionName(`${currentList.name} — copy`);
+    setVersionEdit(input);
+  };
+
   const runPreview = () => {
     const input = buildInput();
     if (typeof input === "string") {
       toast.error(input);
+      return;
+    }
+    if (locked) {
+      openVersionPrompt(input);
       return;
     }
     setRevertFn(null);
@@ -100,6 +126,11 @@ export function MyListClient({
   // Inline price edit -> preview-then-confirm via the same dialog.
   const handleInlineEdit = (id: string, newPrice: number, revert: () => void) => {
     const input: EditInput = { scope: "single", operation: "set", value: newPrice, targetId: id };
+    if (locked) {
+      revert(); // don't change the locked list's cell; capture the intent instead
+      openVersionPrompt(input);
+      return;
+    }
     setRevertFn(() => revert);
     start(async () => {
       const r = await previewEdit(input);
@@ -110,6 +141,20 @@ export function MyListClient({
       }
       setPendingInput(input);
       setPreview(r);
+    });
+  };
+
+  const commitVersion = () => {
+    if (!versionEdit) return;
+    start(async () => {
+      const r = await createVersionAndEdit(versionName, versionEdit);
+      if (r.ok) {
+        toast.success(r.message);
+        setVersionEdit(null);
+        router.refresh();
+      } else {
+        toast.error(r.message);
+      }
     });
   };
 
@@ -145,6 +190,16 @@ export function MyListClient({
 
   return (
     <div className="space-y-4">
+      <ListVersionBar lists={lists} currentList={currentList} canEdit={editable} />
+
+      {editable && locked && (
+        <div className="flex items-center gap-2 rounded-md border border-maaef-red/30 bg-maaef-red/5 px-4 py-3 text-sm text-maaef-purple">
+          <Lock className="h-4 w-4 text-maaef-red" />
+          This is the locked original. Any edit here will ask you to name a new list and
+          apply the change there — the original is never modified.
+        </div>
+      )}
+
       {editable && (
         <Card>
           <CardContent className="flex flex-wrap items-end gap-3 py-4">
@@ -209,7 +264,7 @@ export function MyListClient({
             </div>
 
             <Button onClick={runPreview} disabled={pending}>
-              <Calculator className="h-4 w-4" /> Preview
+              <Calculator className="h-4 w-4" /> {locked ? "Save as new list…" : "Preview"}
             </Button>
 
             {scope === "single" && (
@@ -322,6 +377,39 @@ export function MyListClient({
                 {blockedSilently ? "Apply the rest" : "Apply"}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Locked-list edit -> name a new version, which is created with the edit. */}
+      <Dialog open={!!versionEdit} onOpenChange={(o) => { if (!o) setVersionEdit(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save changes as a new list</DialogTitle>
+            <DialogDescription>
+              &quot;{currentList.name}&quot; is locked and won&apos;t be changed. Name the new
+              editable list — your edit is applied there.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="version-name">New list name</Label>
+            <Input
+              id="version-name"
+              value={versionName}
+              onChange={(e) => setVersionName(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && versionName.trim()) commitVersion();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVersionEdit(null)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button onClick={commitVersion} disabled={pending || !versionName.trim()}>
+              {pending ? "Creating…" : "Create & apply"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

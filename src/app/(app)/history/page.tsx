@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentList } from "@/lib/lists";
 import { HistoryClient, type EditRow } from "./history-client";
 
 export const dynamic = "force-dynamic";
@@ -26,13 +27,17 @@ export default async function HistoryPage() {
   if (!session) redirect("/login");
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("price_edits")
-    .select(
-      "id, product_id, old_price, new_price, operation, scope, batch_id, reverted, note, created_at, actor, my_products(sku, product_name, currency), profiles!price_edits_actor_fkey(full_name, email)",
-    )
-    .order("created_at", { ascending: false })
-    .limit(500);
+  const currentList = await getCurrentList();
+  const { data } = currentList
+    ? await supabase
+        .from("price_edits")
+        .select(
+          "id, product_id, old_price, new_price, operation, scope, batch_id, reverted, note, created_at, actor, my_products!inner(sku, product_name, currency, list_id), profiles!price_edits_actor_fkey(full_name, email)",
+        )
+        .eq("my_products.list_id", currentList.id)
+        .order("created_at", { ascending: false })
+        .limit(500)
+    : { data: [] };
 
   const rows: EditRow[] = ((data as unknown as JoinedEdit[]) ?? []).map((e) => ({
     id: e.id,

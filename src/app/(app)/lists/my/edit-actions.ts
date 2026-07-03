@@ -3,6 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/capabilities";
+import { getCurrentList } from "@/lib/lists";
+
+function mapError(msg: string): string {
+  if (msg.includes("LIST_LOCKED")) {
+    return "This list is locked. Create a working version to edit it.";
+  }
+  return msg;
+}
 
 export type EditScope = "single" | "category" | "list";
 export type EditOperation = "percentage" | "flat" | "set";
@@ -52,17 +60,24 @@ async function callMutate(input: EditInput, confirm: boolean, dryRun: boolean): 
   const err = validate(input);
   if (err) return { status: "error", message: err };
 
+  const current = await getCurrentList();
+  if (!current) return { status: "error", message: "No list selected." };
+  if (current.locked || current.is_original) {
+    return { status: "error", message: "This list is locked. Create a working version to edit it." };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("mutate_prices", {
     p_scope: input.scope,
     p_operation: input.operation,
     p_value: input.value,
+    p_list_id: current.id,
     p_target_id: input.targetId ?? null,
     p_target_category: input.targetCategory ?? null,
     p_confirm_below_floor: confirm,
     p_dry_run: dryRun,
   });
-  if (error) return { status: "error", message: error.message };
+  if (error) return { status: "error", message: mapError(error.message) };
   return data as EditResult;
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentListId } from "@/lib/lists";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, PencilRuler } from "lucide-react";
@@ -12,12 +13,14 @@ export const dynamic = "force-dynamic";
 export default async function ConfiguratorPage() {
   const { can } = await requireSession();
   const supabase = await createClient();
+  const listId = await getCurrentListId();
 
   const [{ data: products }, { data: addons }] = await Promise.all([
     supabase
       .from("my_products")
       .select("id, sku, product_name, category, price, currency")
       .eq("active", true)
+      .eq("list_id", listId ?? "00000000-0000-0000-0000-000000000000")
       .order("category")
       .order("product_name"),
     supabase

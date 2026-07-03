@@ -1,6 +1,8 @@
 import { requireSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentList } from "@/lib/lists";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { OverlapGrid, type OverlapRow } from "./overlap-grid";
 
 export const dynamic = "force-dynamic";
@@ -19,10 +21,14 @@ type VOverlap = {
 export default async function OverlapPage() {
   await requireSession();
   const supabase = await createClient();
+  const currentList = await getCurrentList();
 
-  const { data } = await supabase
-    .from("v_overlap")
-    .select("my_product_id, my_sku, my_product_name, category, my_price, currency, competitor_name, competitor_price");
+  const { data } = currentList
+    ? await supabase
+        .from("v_overlap")
+        .select("my_product_id, my_sku, my_product_name, category, my_price, currency, competitor_name, competitor_price")
+        .eq("list_id", currentList.id)
+    : { data: [] };
 
   const rowsRaw = (data as VOverlap[] | null) ?? [];
 
@@ -71,7 +77,10 @@ export default async function OverlapPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Undercut radar</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Undercut radar</h1>
+          {currentList && <Badge variant="muted">{currentList.name}</Badge>}
+        </div>
         <p className="mt-1 text-muted-foreground">
           Products you overlap on, sorted by where you&apos;re pricier than the cheapest
           competitor — your undercut targets first.

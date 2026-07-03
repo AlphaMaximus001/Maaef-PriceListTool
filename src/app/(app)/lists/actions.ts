@@ -1,10 +1,29 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireCapability } from "@/lib/capabilities";
 import { parseWorkbook } from "@/lib/templates";
 import { parseUnifiedWorkbook, DEFAULT_MY_BRAND } from "@/lib/unified";
+import { LIST_COOKIE } from "@/lib/lists";
+
+/** Create a fresh locked "Original" list for an import and select it. */
+async function createOriginalList(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  createdBy: string,
+  label: string,
+): Promise<string | null> {
+  const name = `Original — ${label} ${new Date().toLocaleDateString("en-IN")}`;
+  const { data, error } = await supabase
+    .from("price_lists")
+    .insert({ name, is_original: true, locked: true, created_by: createdBy })
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  (await cookies()).set(LIST_COOKIE, data.id, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  return data.id;
+}
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -125,15 +144,12 @@ export async function uploadMyProducts(formData: FormData): Promise<UploadResult
 
   await archiveOriginal(supabase, file, "my-products");
 
-  // Existing prices, to log changes.
-  const skus = parsed.rows.map((r) => r.sku!).filter(Boolean);
-  const { data: existing } = await supabase
-    .from("my_products")
-    .select("id, sku, price")
-    .in("sku", skus);
-  const bySku = new Map((existing ?? []).map((p) => [p.sku, p]));
+  // Each import is its own locked baseline (invariant-friendly versioning).
+  const listId = await createOriginalList(supabase, session.profile.id, "products");
+  if (!listId) return { ok: false, message: "Could not create the list." };
 
-  const upserts = parsed.rows.map((r) => ({
+  const rows = parsed.rows.map((r) => ({
+    list_id: listId,
     sku: r.sku,
     product_name: r.product_name,
     category: r.category,
@@ -142,44 +158,11 @@ export async function uploadMyProducts(formData: FormData): Promise<UploadResult
     price: r.price,
     currency: r.currency,
   }));
-  const { data: saved, error } = await supabase
-    .from("my_products")
-    .upsert(upserts, { onConflict: "sku" })
-    .select("id, sku, price");
+  const { data: saved, error } = await supabase.from("my_products").insert(rows).select("id, sku");
   if (error) return { ok: false, message: `Import failed: ${error.message}` };
 
   const savedBySku = new Map((saved ?? []).map((p) => [p.sku, p]));
 
-  // Audit log for price changes on rows that already existed.
-  const batchId = crypto.randomUUID();
-  const edits: {
-    product_id: string;
-    old_price: number;
-    new_price: number;
-    operation: "set";
-    scope: "list";
-    batch_id: string;
-    actor: string;
-    note: string;
-  }[] = [];
-  for (const r of parsed.rows) {
-    const prev = bySku.get(r.sku!);
-    if (prev && Number(prev.price) !== r.price) {
-      edits.push({
-        product_id: prev.id,
-        old_price: Number(prev.price),
-        new_price: r.price,
-        operation: "set",
-        scope: "list",
-        batch_id: batchId,
-        actor: session.profile.id,
-        note: "Imported from spreadsheet",
-      });
-    }
-  }
-  if (edits.length) await supabase.from("price_edits").insert(edits);
-
-  // Costs (only when permitted).
   if (canCost) {
     const costRows = parsed.rows
       .filter((r) => r.cost != null)
@@ -190,16 +173,16 @@ export async function uploadMyProducts(formData: FormData): Promise<UploadResult
         updated_by: session.profile.id,
       }))
       .filter((c) => c.product_id);
-    if (costRows.length) await supabase.from("product_costs").upsert(costRows, { onConflict: "product_id" });
+    if (costRows.length) await supabase.from("product_costs").insert(costRows);
   }
 
   revalidatePath("/lists");
   revalidatePath("/lists/my");
   return {
     ok: true,
-    message: `Imported ${upserts.length} products${edits.length ? ` (${edits.length} price changes logged)` : ""}.`,
+    message: `Imported ${rows.length} products into a new locked baseline.`,
     warnings: parsed.warnings,
-    inserted: upserts.length,
+    inserted: rows.length,
   };
 }
 
@@ -230,10 +213,16 @@ export async function uploadUnifiedInventory(formData: FormData): Promise<Upload
   const stamp = new Date();
   const archivePath = await archiveOriginal(supabase, file, "unified");
 
-  // 1) Upsert my products (rows priced for the my-brand).
+  // Each import is its own locked baseline (the "Original"); edits are made on
+  // copies, never here.
+  const listId = await createOriginalList(supabase, session.profile.id, "inventory");
+  if (!listId) return { ok: false, message: "Could not create the list." };
+
+  // 1) Insert my products (rows priced for the my-brand) into the baseline.
   const myUpserts = parsed.rows
     .filter((r) => r.myPrice !== null)
     .map((r) => ({
+      list_id: listId,
       sku: r.mySku,
       product_name: r.name,
       category: r.category,
@@ -245,14 +234,18 @@ export async function uploadUnifiedInventory(formData: FormData): Promise<Upload
     }));
 
   for (const c of chunk(myUpserts, 500)) {
-    const { error } = await supabase.from("my_products").upsert(c, { onConflict: "sku" });
+    const { error } = await supabase.from("my_products").insert(c);
     if (error) return { ok: false, message: `Products import failed: ${error.message}` };
   }
 
-  // Map my SKU -> id.
+  // Map my SKU -> id (scoped to this list — SKUs are unique per list now).
   const mySkuToId = new Map<string, string>();
   for (const c of chunk(myUpserts.map((u) => u.sku), 500)) {
-    const { data } = await supabase.from("my_products").select("id, sku").in("sku", c);
+    const { data } = await supabase
+      .from("my_products")
+      .select("id, sku")
+      .eq("list_id", listId)
+      .in("sku", c);
     for (const p of data ?? []) mySkuToId.set(p.sku, p.id);
   }
 

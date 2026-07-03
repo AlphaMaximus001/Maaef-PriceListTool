@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentList } from "@/lib/lists";
 import { buildListHtml, type PdfItem } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
 
@@ -29,14 +30,17 @@ export async function GET(
   let items: PdfItem[] = [];
 
   if (type === "my") {
-    // Reflects the latest saved edits (current my_products).
+    // Export the list the user is currently working in (its latest saved edits).
+    const currentList = await getCurrentList();
+    if (!currentList) return new NextResponse("No list", { status: 404 });
     const { data } = await supabase
       .from("my_products")
       .select("sku, product_name, category, price, currency")
       .eq("active", true)
+      .eq("list_id", currentList.id)
       .order("category")
       .order("product_name");
-    title = "Maaef products";
+    title = currentList.name;
     items = (data ?? []).map((p) => ({
       sku: p.sku,
       product_name: p.product_name,

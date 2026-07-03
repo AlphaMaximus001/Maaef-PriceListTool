@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentListId } from "@/lib/lists";
 import { MatchReviewClient, type MatchRow } from "./match-client";
 
 export const dynamic = "force-dynamic";
@@ -44,22 +45,27 @@ export default async function MatchesPage() {
   if (!session) redirect("/login");
 
   const supabase = await createClient();
+  const listId = await getCurrentListId();
   const select =
-    "id, confidence, method, confirmed, rejected, my_products(sku, product_name, category, price, currency), competitor_items(product_name, price, currency, competitor_lists(name, competitors(name)))";
+    "id, confidence, method, confirmed, rejected, my_products!inner(sku, product_name, category, price, currency, list_id), competitor_items(product_name, price, currency, competitor_lists(name, competitors(name)))";
 
-  const [{ data: pending }, { data: confirmed }] = await Promise.all([
-    supabase
-      .from("product_matches")
-      .select(select)
-      .eq("confirmed", false)
-      .eq("rejected", false)
-      .order("confidence", { ascending: false }),
-    supabase
-      .from("product_matches")
-      .select(select)
-      .eq("confirmed", true)
-      .order("confirmed_at", { ascending: false }),
-  ]);
+  const [{ data: pending }, { data: confirmed }] = listId
+    ? await Promise.all([
+        supabase
+          .from("product_matches")
+          .select(select)
+          .eq("my_products.list_id", listId)
+          .eq("confirmed", false)
+          .eq("rejected", false)
+          .order("confidence", { ascending: false }),
+        supabase
+          .from("product_matches")
+          .select(select)
+          .eq("my_products.list_id", listId)
+          .eq("confirmed", true)
+          .order("confirmed_at", { ascending: false }),
+      ])
+    : [{ data: [] }, { data: [] }];
 
   return (
     <MatchReviewClient
