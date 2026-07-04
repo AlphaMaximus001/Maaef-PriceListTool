@@ -57,6 +57,15 @@ export default async function HistoryPage() {
 
   const canUndoSingle = session.can.edit_price;
   const canUndoBatch = session.can.bulk_edit;
+  const listLocked = !currentList || currentList.locked || currentList.is_original;
 
-  return <HistoryClient rows={rows} canUndoSingle={canUndoSingle} canUndoBatch={canUndoBatch} />;
+  return (
+    <HistoryClient
+      rows={rows}
+      canUndoSingle={canUndoSingle}
+      canUndoBatch={canUndoBatch}
+      canRestore={canUndoBatch && !listLocked}
+      listName={currentList?.name ?? ""}
+    />
+  );
 }

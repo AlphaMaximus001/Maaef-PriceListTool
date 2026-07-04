@@ -3,9 +3,15 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { GitBranchPlus, Pencil, Lock } from "lucide-react";
+import { GitBranchPlus, Pencil, Lock, TimerReset, Archive } from "lucide-react";
 import type { PriceList } from "@/lib/lists";
-import { selectList, createVersion, renameList } from "../list-actions";
+import {
+  selectList,
+  createVersion,
+  renameList,
+  resetListToCreation,
+  archiveList,
+} from "../list-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,13 +78,79 @@ export function ListVersionBar({
         </span>
       )}
 
-      <div className="ml-auto flex gap-2">
+      <div className="ml-auto flex flex-wrap gap-2">
         {canEdit && <NewVersionDialog defaultName={`${currentList.name} — copy`} />}
         {canEdit && !currentList.is_original && (
-          <RenameDialog listId={currentList.id} currentName={currentList.name} />
+          <>
+            <RenameDialog listId={currentList.id} currentName={currentList.name} />
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              title="Undo every change in this list — back to exactly how it was created"
+              onClick={() =>
+                start(async () => {
+                  const r = await resetListToCreation();
+                  if (r.ok) {
+                    toast.success(r.message);
+                    router.refresh();
+                  } else toast.error(r.message);
+                })
+              }
+            >
+              <TimerReset className="h-4 w-4" /> Reset
+            </Button>
+            <ArchiveDialog listId={currentList.id} listName={currentList.name} />
+          </>
         )}
       </div>
     </div>
+  );
+}
+
+function ArchiveDialog({ listId, listName }: { listId: string; listName: string }) {
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+  const [pending, start] = React.useTransition();
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+          <Archive className="h-4 w-4" /> Archive
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Archive “{listName}”?</DialogTitle>
+          <DialogDescription>
+            The list disappears from every screen and picker. The original is unaffected
+            and stays available. This does not delete data.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const r = await archiveList(listId);
+                if (r.ok) {
+                  toast.success(r.message);
+                  setOpen(false);
+                  router.refresh();
+                } else toast.error(r.message);
+              })
+            }
+          >
+            {pending ? "Archiving…" : "Archive list"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

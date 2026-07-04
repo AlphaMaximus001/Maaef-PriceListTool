@@ -3,8 +3,9 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Undo2, Layers } from "lucide-react";
+import { Undo2, Layers, TimerReset } from "lucide-react";
 import { undoEdit, undoBatch } from "../lists/my/edit-actions";
+import { restoreListTo } from "../lists/list-actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,10 +62,14 @@ export function HistoryClient({
   rows,
   canUndoSingle,
   canUndoBatch,
+  canRestore,
+  listName,
 }: {
   rows: EditRow[];
   canUndoSingle: boolean;
   canUndoBatch: boolean;
+  canRestore: boolean;
+  listName: string;
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
@@ -82,7 +87,9 @@ export function HistoryClient({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Edit history</h1>
         <p className="mt-1 text-muted-foreground">
-          Every price change is logged and reversible. Most recent first.
+          {listName ? `${listName} — every` : "Every"} price change is logged and
+          reversible. Most recent first.
+          {canRestore ? " “Restore to before” rolls the whole list back to that moment." : ""}
         </p>
       </div>
 
@@ -119,29 +126,42 @@ export function HistoryClient({
                     {new Date(g.createdAt).toLocaleString()} · {g.actor}
                   </CardDescription>
                 </div>
-                {isBatch
-                  ? canUndoBatch &&
-                    !g.allReverted && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() => doUndo(() => undoBatch(g.batchId))}
-                      >
-                        <Undo2 className="h-4 w-4" /> Undo batch
-                      </Button>
-                    )
-                  : canUndoSingle &&
-                    !g.edits[0].reverted && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() => doUndo(() => undoEdit(g.edits[0].id))}
-                      >
-                        <Undo2 className="h-4 w-4" /> Undo
-                      </Button>
-                    )}
+                <div className="flex flex-wrap gap-2">
+                  {isBatch
+                    ? canUndoBatch &&
+                      !g.allReverted && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => doUndo(() => undoBatch(g.batchId))}
+                        >
+                          <Undo2 className="h-4 w-4" /> Undo batch
+                        </Button>
+                      )
+                    : canUndoSingle &&
+                      !g.edits[0].reverted && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => doUndo(() => undoEdit(g.edits[0].id))}
+                        >
+                          <Undo2 className="h-4 w-4" /> Undo
+                        </Button>
+                      )}
+                  {canRestore && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={pending}
+                      title="Roll the whole list back to just before this change"
+                      onClick={() => doUndo(() => restoreListTo(g.createdAt))}
+                    >
+                      <TimerReset className="h-4 w-4" /> Restore to before
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>

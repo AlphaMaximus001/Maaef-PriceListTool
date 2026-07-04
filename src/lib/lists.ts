@@ -23,6 +23,7 @@ export const getLists = cache(async (): Promise<PriceList[]> => {
   const { data } = await supabase
     .from("price_lists")
     .select("id, name, is_original, locked, created_from, created_at")
+    .eq("archived", false)
     .order("is_original", { ascending: false })
     .order("created_at", { ascending: true });
   return (data as PriceList[] | null) ?? [];

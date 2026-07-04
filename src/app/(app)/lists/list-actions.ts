@@ -111,3 +111,51 @@ export async function renameList(listId: string, name: string): Promise<ListActi
   revalidatePath("/", "layout");
   return { ok: true, message: "Renamed." };
 }
+
+/**
+ * Roll the current (unlocked) list back to its state just before `beforeIso`.
+ * Uses the audit trail; the restore is itself logged, so it can be undone too.
+ */
+export async function restoreListTo(beforeIso: string): Promise<ListActionResult> {
+  await requireCapability("bulk_edit");
+  const current = await getCurrentList();
+  if (!current) return { ok: false, message: "No list selected." };
+  if (current.locked || current.is_original) {
+    return { ok: false, message: "The original is already pristine — nothing to restore." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("restore_list", {
+    p_list_id: current.id,
+    p_before: beforeIso,
+  });
+  if (error) return { ok: false, message: error.message };
+
+  const count = (data as { count?: number })?.count ?? 0;
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: count === 0 ? "Already at that state — nothing to change." : `Restored ${count} price(s).`,
+  };
+}
+
+/** Reset a version to exactly how it was created (the original's prices). */
+export async function resetListToCreation(): Promise<ListActionResult> {
+  return restoreListTo(new Date(0).toISOString());
+}
+
+/** Archive (soft-delete) a bad version. Originals can never be archived. */
+export async function archiveList(listId: string): Promise<ListActionResult> {
+  await requireCapability("edit_price");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("archive_list", { p_list_id: listId });
+  if (error) return { ok: false, message: error.message };
+
+  // If the archived list was selected, fall back to the newest original.
+  const cookieStore = await cookies();
+  if (cookieStore.get(LIST_COOKIE)?.value === listId) {
+    cookieStore.delete(LIST_COOKIE);
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, message: "List archived. Switched back to the original." };
+}
