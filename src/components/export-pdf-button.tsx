@@ -25,11 +25,17 @@ export function ExportPdfButton({
     try {
       const res = await fetch(href);
       if (!res.ok) {
-        toast.error(
-          res.status === 403
-            ? "You don't have permission to export PDFs."
-            : `Export failed (${res.status}).`,
-        );
+        if (res.status === 403) {
+          toast.error("You don't have permission to export PDFs.");
+          return;
+        }
+        // Surface the server's actual reason (e.g. missing Chromium) so the
+        // failure is diagnosable instead of a bare status code.
+        const reason = (await res.text().catch(() => "")).trim();
+        const hint = /executable doesn't exist|playwright|browsertype/i.test(reason)
+          ? "The PDF engine (Chromium) isn't installed. Run: npx playwright install chromium"
+          : reason || `Export failed (${res.status}).`;
+        toast.error(hint, { duration: 8000 });
         return;
       }
       const blob = await res.blob();
