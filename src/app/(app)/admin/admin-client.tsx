@@ -47,6 +47,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { InfoTip } from "@/components/info-tip";
 
 export type CapabilityMeta = {
   key: Capability;
@@ -95,6 +96,7 @@ export function AdminClient({
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
             <ShieldCheck className="h-6 w-6 text-maaef-red" />
             Admin
+            <InfoTip k="admin.page" />
           </h1>
           <p className="mt-1 text-muted-foreground">
             Users, roles, and per-person capability grants. This page is the single
@@ -117,9 +119,15 @@ export function AdminClient({
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead className="text-right">Capabilities</TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">Role <InfoTip k="admin.role" /></span>
+                </TableHead>
+                <TableHead>
+                  <span className="inline-flex items-center gap-1">Active <InfoTip k="admin.active" /></span>
+                </TableHead>
+                <TableHead className="text-right">
+                  <span className="inline-flex items-center gap-1">Capabilities <InfoTip k="admin.capabilities" /></span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,12 +202,15 @@ function CreateUserDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <UserPlus className="h-4 w-4" />
-          New user
-        </Button>
-      </DialogTrigger>
+      <span className="flex items-center gap-1.5">
+        <DialogTrigger asChild>
+          <Button>
+            <UserPlus className="h-4 w-4" />
+            New user
+          </Button>
+        </DialogTrigger>
+        <InfoTip k="admin.newUser" side="bottom" />
+      </span>
       <DialogContent>
         <form
           action={(fd) =>

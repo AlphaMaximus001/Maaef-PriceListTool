@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
+import { InfoTip } from "@/components/info-tip";
 import { MarketGapGrid, type MarketGapRow } from "./market-gap-grid";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,9 @@ export default async function MarketGapPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Market gap</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          Market gap <InfoTip k="gap.page" side="right" />
+        </h1>
         <p className="mt-1 text-muted-foreground">
           Products competitors sell that you don&apos;t — no confirmed match to any Maaef
           product. Whitespace to consider adding.

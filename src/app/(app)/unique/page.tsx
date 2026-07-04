@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentList } from "@/lib/lists";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/info-tip";
 import { UniqueGrid, type UniqueRow } from "./unique-grid";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,7 @@ export default async function UniquePage() {
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">Pricing power</h1>
+          <InfoTip k="unique.page" side="right" />
           {currentList && <Badge variant="muted">{currentList.name}</Badge>}
         </div>
         <p className="mt-1 text-muted-foreground">

@@ -31,6 +31,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { InfoTip } from "@/components/info-tip";
 
 export function ListVersionBar({
   lists,
@@ -46,7 +47,9 @@ export function ListVersionBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
-      <Label className="text-sm text-muted-foreground">Working list</Label>
+      <Label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        Working list <InfoTip k="mylist.workingList" />
+      </Label>
       <Select
         value={currentList.id}
         onValueChange={(id) =>
@@ -78,29 +81,42 @@ export function ListVersionBar({
         </span>
       )}
 
-      <div className="ml-auto flex flex-wrap gap-2">
-        {canEdit && <NewVersionDialog defaultName={`${currentList.name} — copy`} />}
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        {canEdit && (
+          <span className="flex items-center gap-1">
+            <NewVersionDialog defaultName={`${currentList.name} — copy`} />
+            <InfoTip k="mylist.newVersion" />
+          </span>
+        )}
         {canEdit && !currentList.is_original && (
           <>
-            <RenameDialog listId={currentList.id} currentName={currentList.name} />
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={pending}
-              title="Undo every change in this list — back to exactly how it was created"
-              onClick={() =>
-                start(async () => {
-                  const r = await resetListToCreation();
-                  if (r.ok) {
-                    toast.success(r.message);
-                    router.refresh();
-                  } else toast.error(r.message);
-                })
-              }
-            >
-              <TimerReset className="h-4 w-4" /> Reset
-            </Button>
-            <ArchiveDialog listId={currentList.id} listName={currentList.name} />
+            <span className="flex items-center gap-1">
+              <RenameDialog listId={currentList.id} currentName={currentList.name} />
+              <InfoTip k="mylist.rename" />
+            </span>
+            <span className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    const r = await resetListToCreation();
+                    if (r.ok) {
+                      toast.success(r.message);
+                      router.refresh();
+                    } else toast.error(r.message);
+                  })
+                }
+              >
+                <TimerReset className="h-4 w-4" /> Reset
+              </Button>
+              <InfoTip k="mylist.reset" />
+            </span>
+            <span className="flex items-center gap-1">
+              <ArchiveDialog listId={currentList.id} listName={currentList.name} />
+              <InfoTip k="mylist.archive" />
+            </span>
           </>
         )}
       </div>

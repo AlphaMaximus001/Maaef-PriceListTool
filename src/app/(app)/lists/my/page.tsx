@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { type MyProductRow } from "./my-grid";
 import { MyListClient } from "./my-list-client";
 import { ExportPdfButton } from "@/components/export-pdf-button";
+import { InfoTip } from "@/components/info-tip";
 
 export const dynamic = "force-dynamic";
 
@@ -79,13 +80,19 @@ export default async function MyListPage() {
               <Badge>Version</Badge>
             )}
           </div>
-          <p className="ml-10 mt-1 text-muted-foreground">
-            {rows.length} products in <span className="font-medium">{currentList.name}</span>.
-            {can.view_cost ? " Cost is visible to you only." : ""}
+          <p className="ml-10 mt-1 flex flex-wrap items-center gap-1.5 text-muted-foreground">
+            <span>
+              {rows.length} products in <span className="font-medium">{currentList.name}</span>.
+              {can.view_cost ? " Cost is visible to you only." : ""}
+            </span>
+            {can.view_cost && <InfoTip k="mylist.costColumn" />}
           </p>
         </div>
         {can.export_pdf && (
-          <ExportPdfButton href="/api/export/my/list" filename="maaef-products.pdf" />
+          <div className="flex items-center gap-1.5">
+            <ExportPdfButton href="/api/export/my/list" filename="maaef-products.pdf" />
+            <InfoTip k="mylist.exportPdf" side="bottom" />
+          </div>
         )}
       </div>
 

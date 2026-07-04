@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InfoTip } from "@/components/info-tip";
 import {
   Dialog,
   DialogContent,
@@ -58,11 +59,14 @@ export function UploadUnifiedDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setResult(null); }}>
-      <DialogTrigger asChild>
-        <Button>
-          <Upload className="h-4 w-4" /> Import inventory
-        </Button>
-      </DialogTrigger>
+      <div className="flex items-center gap-1.5">
+        <DialogTrigger asChild>
+          <Button>
+            <Upload className="h-4 w-4" /> Import inventory
+          </Button>
+        </DialogTrigger>
+        <InfoTip k="lists.importUnified" side="bottom" />
+      </div>
       <DialogContent>
         <form
           action={(fd) =>
@@ -77,7 +81,9 @@ export function UploadUnifiedDialog() {
           }
         >
           <DialogHeader>
-            <DialogTitle>Import unified inventory</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              Import unified inventory <InfoTip k="lists.importUnified" />
+            </DialogTitle>
             <DialogDescription>
               One wide sheet with your rate and each competitor&apos;s rate per row
               (e.g. Maaef / Smas / Chandra). Creates your products, each competitor
@@ -92,7 +98,9 @@ export function UploadUnifiedDialog() {
               <Download className="h-3.5 w-3.5" /> Download the unified template
             </a>
             <div className="space-y-2">
-              <Label htmlFor="my-brand">Your brand column</Label>
+              <Label htmlFor="my-brand" className="flex items-center gap-1.5">
+                Your brand column <InfoTip k="upload.myBrand" />
+              </Label>
               <Input id="my-brand" name="my_brand" defaultValue="Maaef" />
               <p className="text-xs text-muted-foreground">
                 The <code>&lt;brand&gt; Rate</code> column that is yours. Every other
@@ -123,11 +131,14 @@ export function UploadMyProductsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setResult(null); }}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <Upload className="h-4 w-4" /> Import my list
-        </Button>
-      </DialogTrigger>
+      <div className="flex items-center gap-1.5">
+        <DialogTrigger asChild>
+          <Button variant="outline">
+            <Upload className="h-4 w-4" /> Import my list
+          </Button>
+        </DialogTrigger>
+        <InfoTip k="lists.importMy" side="bottom" />
+      </div>
       <DialogContent>
         <form
           action={(fd) =>
@@ -142,7 +153,9 @@ export function UploadMyProductsDialog() {
           }
         >
           <DialogHeader>
-            <DialogTitle>Import Maaef products</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              Import Maaef products <InfoTip k="lists.importMy" />
+            </DialogTitle>
             <DialogDescription>
               Upserts by SKU. Price changes to existing products are logged. Cost is
               only imported if you can view cost.
@@ -184,11 +197,14 @@ export function UploadCompetitorDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setResult(null); }}>
-      <DialogTrigger asChild>
-        <Button>
-          <Upload className="h-4 w-4" /> Upload competitor list
-        </Button>
-      </DialogTrigger>
+      <div className="flex items-center gap-1.5">
+        <DialogTrigger asChild>
+          <Button>
+            <Upload className="h-4 w-4" /> Upload competitor list
+          </Button>
+        </DialogTrigger>
+        <InfoTip k="lists.uploadCompetitor" side="bottom" />
+      </div>
       <DialogContent>
         <form
           action={(fd) =>
@@ -203,7 +219,9 @@ export function UploadCompetitorDialog({
           }
         >
           <DialogHeader>
-            <DialogTitle>Upload competitor list</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              Upload competitor list <InfoTip k="lists.uploadCompetitor" />
+            </DialogTitle>
             <DialogDescription>
               Reference data — imported once, never edited in-app.
             </DialogDescription>

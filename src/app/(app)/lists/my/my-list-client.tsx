@@ -17,6 +17,7 @@ import {
 } from "./edit-actions";
 import { createVersionAndEdit } from "../list-actions";
 import { ListVersionBar } from "./list-version-bar";
+import { InfoTip } from "@/components/info-tip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,8 +204,14 @@ export function MyListClient({
       {editable && (
         <Card>
           <CardContent className="flex flex-wrap items-end gap-3 py-4">
+            <div className="flex w-full items-center gap-2 text-sm font-medium">
+              <span>Bulk price editor</span>
+              <InfoTip k="mylist.editToolbar" />
+            </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Scope</label>
+              <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                Scope <InfoTip k="mylist.scope" />
+              </label>
               <Select value={scope} onValueChange={(v) => setScope(v as EditScope)}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
@@ -236,7 +243,9 @@ export function MyListClient({
             )}
 
             <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Operation</label>
+              <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                Operation <InfoTip k="mylist.operation" />
+              </label>
               <Select value={operation} onValueChange={(v) => setOperation(v as EditOperation)}>
                 <SelectTrigger className="w-44">
                   <SelectValue />
@@ -263,9 +272,12 @@ export function MyListClient({
               />
             </div>
 
-            <Button onClick={runPreview} disabled={pending}>
-              <Calculator className="h-4 w-4" /> {locked ? "Save as new list…" : "Preview"}
-            </Button>
+            <span className="flex items-center gap-1">
+              <Button onClick={runPreview} disabled={pending}>
+                <Calculator className="h-4 w-4" /> {locked ? "Save as new list…" : "Preview"}
+              </Button>
+              <InfoTip k="mylist.preview" />
+            </span>
 
             {scope === "single" && (
               <span className="text-xs text-muted-foreground">
@@ -277,7 +289,9 @@ export function MyListClient({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <label className="text-sm font-medium text-muted-foreground">Show category</label>
+        <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+          Show category <InfoTip k="mylist.showCategory" />
+        </label>
         <Select value={viewCategory} onValueChange={setViewCategory}>
           <SelectTrigger className="w-72">
             <SelectValue />

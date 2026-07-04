@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/info-tip";
 import { Check, X } from "lucide-react";
 
 const CAP_LABELS: Record<Capability, string> = {
@@ -47,7 +48,9 @@ export default async function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Your access</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Your access <InfoTip k="dashboard.access" />
+            </CardTitle>
             <CardDescription>
               Resolved through <code className="text-xs">has_capability()</code> —
               role default, overridden per-person by an admin.
@@ -79,7 +82,9 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Build roadmap</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Build roadmap <InfoTip k="dashboard.roadmap" />
+            </CardTitle>
             <CardDescription>Phases ship in order; each is usable before the next.</CardDescription>
           </CardHeader>
           <CardContent>

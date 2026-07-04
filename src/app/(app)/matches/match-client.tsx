@@ -7,6 +7,7 @@ import { runMatcher, confirmMatch, rejectMatch } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InfoTip } from "@/components/info-tip";
 import { formatPrice } from "@/lib/utils";
 
 export type MatchRow = {
@@ -107,23 +108,28 @@ export function MatchReviewClient({
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Match review</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            Match review <InfoTip k="matches.page" side="right" />
+          </h1>
           <p className="mt-1 text-muted-foreground">
             The matcher only proposes. Nothing affects the overlap view until you confirm it.
           </p>
         </div>
         {canConfirm && (
-          <Button
-            disabled={running}
-            onClick={() =>
-              start(async () => {
-                const r = await runMatcher();
-                r.ok ? toast.success(r.message) : toast.error(r.message);
-              })
-            }
-          >
-            <Wand2 className="h-4 w-4" /> {running ? "Matching…" : "Run matcher"}
-          </Button>
+          <span className="flex items-center gap-1.5">
+            <Button
+              disabled={running}
+              onClick={() =>
+                start(async () => {
+                  const r = await runMatcher();
+                  r.ok ? toast.success(r.message) : toast.error(r.message);
+                })
+              }
+            >
+              <Wand2 className="h-4 w-4" /> {running ? "Matching…" : "Run matcher"}
+            </Button>
+            <InfoTip k="matches.run" side="bottom" />
+          </span>
         )}
       </div>
 
@@ -131,6 +137,7 @@ export function MatchReviewClient({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Proposed <Badge variant="muted">{pending.length}</Badge>
+            <InfoTip k="matches.proposed" />
           </CardTitle>
           <CardDescription>Confirm a match to move the product onto the undercut radar.</CardDescription>
         </CardHeader>
@@ -152,6 +159,7 @@ export function MatchReviewClient({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Confirmed <Badge variant="success">{confirmed.length}</Badge>
+              <InfoTip k="matches.confirmed" />
             </CardTitle>
             <CardDescription>These power the overlap view. Retract to undo.</CardDescription>
           </CardHeader>

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/info-tip";
 import {
   Dialog,
   DialogContent,
@@ -91,7 +92,9 @@ export function ConfiguratorClient({
       <Card>
         <CardHeader className="flex flex-row items-start justify-between">
           <div>
-            <CardTitle>Configured price</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Configured price <InfoTip k="config.price" />
+            </CardTitle>
             <CardDescription>Base {formatPrice(basePrice, currency)} + selected add-ons</CardDescription>
           </div>
           <div className="text-right">

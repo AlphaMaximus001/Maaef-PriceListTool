@@ -5,6 +5,7 @@ import { getCurrentListId } from "@/lib/lists";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, PencilRuler } from "lucide-react";
+import { InfoTip } from "@/components/info-tip";
 import { AddonManager, type Addon } from "./addon-manager";
 import { formatPrice } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ export default async function ConfiguratorPage() {
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
           <PencilRuler className="h-6 w-6 text-maaef-red" /> Configurator
+          <InfoTip k="config.page" />
         </h1>
         <p className="mt-1 text-muted-foreground">
           Open a product to toggle spec add-ons and see the price recompute live.
@@ -87,6 +89,7 @@ export default async function ConfiguratorPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 Add-on catalogue <Badge variant="muted">{addonList.length}</Badge>
+                <InfoTip k="config.addons" />
               </CardTitle>
               <CardDescription>Fixed price deltas. No cost-derived math.</CardDescription>
             </CardHeader>

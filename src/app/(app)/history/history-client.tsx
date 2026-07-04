@@ -9,6 +9,7 @@ import { restoreListTo } from "../lists/list-actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/info-tip";
 import { formatPrice } from "@/lib/utils";
 
 export type EditRow = {
@@ -85,7 +86,9 @@ export function HistoryClient({
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit history</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          Edit history <InfoTip k="history.page" side="right" />
+        </h1>
         <p className="mt-1 text-muted-foreground">
           {listName ? `${listName} — every` : "Every"} price change is logged and
           reversible. Most recent first.
@@ -134,6 +137,7 @@ export function HistoryClient({
                           size="sm"
                           variant="outline"
                           disabled={pending}
+                          title="Reverse just this bulk change — puts these products back to their previous prices"
                           onClick={() => doUndo(() => undoBatch(g.batchId))}
                         >
                           <Undo2 className="h-4 w-4" /> Undo batch
@@ -145,6 +149,7 @@ export function HistoryClient({
                           size="sm"
                           variant="outline"
                           disabled={pending}
+                          title="Reverse just this change — puts this product back to its previous price"
                           onClick={() => doUndo(() => undoEdit(g.edits[0].id))}
                         >
                           <Undo2 className="h-4 w-4" /> Undo

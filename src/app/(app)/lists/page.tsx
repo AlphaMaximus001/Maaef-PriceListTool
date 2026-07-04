@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileSpreadsheet, Store, ArrowRight } from "lucide-react";
+import { InfoTip } from "@/components/info-tip";
 import { UploadCompetitorDialog, UploadMyProductsDialog, UploadUnifiedDialog } from "./upload-dialogs";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +34,9 @@ export default async function ListsPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Lists</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            Lists <InfoTip k="lists.directory" side="right" />
+          </h1>
           <p className="mt-1 text-muted-foreground">
             Your list is the one you edit. Competitor lists are reference — read-only.
           </p>
@@ -57,7 +60,7 @@ export default async function ListsPage() {
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  Maaef products <Badge>Your list</Badge>
+                  Maaef products <Badge>Your list</Badge> <InfoTip k="lists.myListCard" />
                 </CardTitle>
                 <CardDescription>{myCount ?? 0} products · editable</CardDescription>
               </div>
@@ -73,7 +76,9 @@ export default async function ListsPage() {
 
       {/* Competitor lists. */}
       <div>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Competitor lists</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          Competitor lists <InfoTip k="lists.competitorCard" />
+        </h2>
         {(!competitors || competitors.length === 0) && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
