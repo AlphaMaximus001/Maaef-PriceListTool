@@ -48,6 +48,24 @@ export default async function MyListPage() {
     costByProduct = new Map((costs ?? []).map((c) => [c.product_id, Number(c.cost)]));
   }
 
+  // MUSP / MP (view_margin only) via the gated DB function.
+  const intel = new Map<string, { musp: number | null; mp: number | null }>();
+  if (can.view_margin) {
+    const { data: rows2 } = await supabase.rpc("pricing_intel", { p_list_id: currentList.id });
+    for (const r of (rows2 as Array<{ product_id: string; musp: number | null; mp: number | null }>) ?? []) {
+      intel.set(r.product_id, { musp: r.musp != null ? Number(r.musp) : null, mp: r.mp != null ? Number(r.mp) : null });
+    }
+  }
+
+  // Open-flag counts for the current list.
+  const flagCount = new Map<string, number>();
+  const { data: openFlags } = await supabase
+    .from("flags")
+    .select("product_id")
+    .eq("list_id", currentList.id)
+    .eq("resolved", false);
+  for (const f of openFlags ?? []) flagCount.set(f.product_id, (flagCount.get(f.product_id) ?? 0) + 1);
+
   const rows: MyProductRow[] = (products ?? []).map((p) => ({
     id: p.id,
     sku: p.sku,
@@ -56,6 +74,9 @@ export default async function MyListPage() {
     price: Number(p.price),
     currency: p.currency,
     cost: can.view_cost ? costByProduct.get(p.id) ?? null : undefined,
+    musp: can.view_margin ? intel.get(p.id)?.musp ?? null : undefined,
+    mp: can.view_margin ? intel.get(p.id)?.mp ?? null : undefined,
+    flags: flagCount.get(p.id) ?? 0,
   }));
 
   const categories = Array.from(new Set(rows.map((r) => r.category))).sort();
@@ -100,6 +121,8 @@ export default async function MyListPage() {
         rows={rows}
         categories={categories}
         showCost={can.view_cost}
+        showMargin={can.view_margin}
+        canEditSpecs={can.edit_specs}
         canEditSingle={can.edit_price}
         canBulk={can.bulk_edit}
         currentList={currentList}

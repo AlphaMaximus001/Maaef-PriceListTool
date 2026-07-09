@@ -17,6 +17,7 @@ import {
 } from "./edit-actions";
 import { createVersionAndEdit } from "../list-actions";
 import { ListVersionBar } from "./list-version-bar";
+import { SkuDetailPanel } from "./sku-detail-panel";
 import { InfoTip } from "@/components/info-tip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,8 @@ export function MyListClient({
   rows,
   categories,
   showCost,
+  showMargin,
+  canEditSpecs,
   canEditSingle,
   canBulk,
   currentList,
@@ -53,6 +56,8 @@ export function MyListClient({
   rows: MyProductRow[];
   categories: string[];
   showCost: boolean;
+  showMargin: boolean;
+  canEditSpecs: boolean;
   canEditSingle: boolean;
   canBulk: boolean;
   currentList: PriceList;
@@ -61,6 +66,10 @@ export function MyListClient({
 }) {
   const router = useRouter();
   const editable = canEditSingle || canBulk;
+
+  const [search, setSearch] = React.useState("");
+  const [onlyFlagged, setOnlyFlagged] = React.useState(false);
+  const [activeId, setActiveId] = React.useState<string | null>(null);
 
   // When the current list is locked, an edit doesn't apply — it opens a dialog
   // to name a new version, which is created with the edit applied.
@@ -75,10 +84,17 @@ export function MyListClient({
 
   // "Jump to category" view filter — independent of the edit-scope category.
   const [viewCategory, setViewCategory] = React.useState<string>("all");
-  const visibleRows = React.useMemo(
-    () => (viewCategory === "all" ? rows : rows.filter((r) => r.category === viewCategory)),
-    [rows, viewCategory],
-  );
+  const visibleRows = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (viewCategory === "all" || r.category === viewCategory) &&
+        (!onlyFlagged || (r.flags ?? 0) > 0) &&
+        (!q || r.sku.toLowerCase().includes(q) || r.product_name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q)),
+    );
+  }, [rows, viewCategory, search, onlyFlagged]);
+
+  const activeRow = React.useMemo(() => rows.find((r) => r.id === activeId) ?? null, [rows, activeId]);
 
   const [pending, start] = React.useTransition();
   const [preview, setPreview] = React.useState<EditResult | null>(null);
@@ -89,8 +105,12 @@ export function MyListClient({
     const v = Number(value);
     if (!Number.isFinite(v)) return "Enter a numeric value.";
     if (scope === "single") {
-      if (selectedIds.length !== 1) return "Select exactly one product (tick a row) for a single edit.";
+      if (selectedIds.length !== 1) return "Tick exactly one product for a single edit.";
       return { scope, operation, value: v, targetId: selectedIds[0] };
+    }
+    if (scope === "selection") {
+      if (selectedIds.length === 0) return "Tick the products you want to change.";
+      return { scope, operation, value: v, targetIds: selectedIds };
     }
     if (scope === "category") return { scope, operation, value: v, targetCategory: category };
     return { scope, operation, value: v };
@@ -218,6 +238,7 @@ export function MyListClient({
                 </SelectTrigger>
                 <SelectContent>
                   {canEditSingle && <SelectItem value="single">Selected product</SelectItem>}
+                  {canBulk && <SelectItem value="selection">Ticked products ({selectedIds.length})</SelectItem>}
                   {canBulk && <SelectItem value="category">A category</SelectItem>}
                   {canBulk && <SelectItem value="list">Whole list</SelectItem>}
                 </SelectContent>
@@ -305,20 +326,49 @@ export function MyListClient({
             ))}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">
-          {viewCategory === "all"
-            ? `${categories.length} categories`
-            : `${visibleRows.length} product${visibleRows.length === 1 ? "" : "s"}`}
+        <span className="flex items-center gap-1">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search SKU, product or category…"
+            className="w-64"
+          />
+          <InfoTip k="mylist.search" />
         </span>
+        <Button
+          variant={onlyFlagged ? "default" : "outline"}
+          size="sm"
+          onClick={() => setOnlyFlagged((v) => !v)}
+        >
+          🚩 Flagged only
+        </Button>
+        <InfoTip k="mylist.flags" />
+        {showMargin && <InfoTip k="mylist.muspMp" />}
+        <span className="text-sm text-muted-foreground">{visibleRows.length} shown</span>
       </div>
 
       <MyProductsGrid
         rows={visibleRows}
         showCost={showCost}
+        showMargin={showMargin}
         editable={editable}
         onSelectionChanged={setSelectedIds}
         onPriceEdit={handleInlineEdit}
+        onRowClick={setActiveId}
+        activeId={activeId}
       />
+
+      {activeRow && (
+        <SkuDetailPanel
+          row={activeRow}
+          showCost={showCost}
+          showMargin={showMargin}
+          canEditSpecs={canEditSpecs}
+          locked={locked}
+          currentListName={currentList.name}
+          onClose={() => setActiveId(null)}
+        />
+      )}
 
       <Dialog open={!!preview} onOpenChange={(o) => { if (!o) { revertFn?.(); close(); } }}>
         <DialogContent>

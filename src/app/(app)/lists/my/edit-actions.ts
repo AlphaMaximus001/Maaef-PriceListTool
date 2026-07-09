@@ -12,7 +12,7 @@ function mapError(msg: string): string {
   return msg;
 }
 
-export type EditScope = "single" | "category" | "list";
+export type EditScope = "single" | "category" | "list" | "selection";
 export type EditOperation = "percentage" | "flat" | "set";
 
 export type EditInput = {
@@ -21,6 +21,7 @@ export type EditInput = {
   value: number;
   targetId?: string | null;
   targetCategory?: string | null;
+  targetIds?: string[] | null;
 };
 
 export type Breach = {
@@ -45,12 +46,14 @@ export type EditResult = {
 };
 
 function validate(input: EditInput): string | null {
-  if (!["single", "category", "list"].includes(input.scope)) return "Invalid scope.";
+  if (!["single", "category", "list", "selection"].includes(input.scope)) return "Invalid scope.";
   if (!["percentage", "flat", "set"].includes(input.operation)) return "Invalid operation.";
   if (!Number.isFinite(input.value)) return "Enter a numeric value.";
   if (input.operation === "set" && input.value < 0) return "Set value can't be negative.";
   if (input.scope === "single" && !input.targetId) return "No product selected.";
   if (input.scope === "category" && !input.targetCategory) return "No category selected.";
+  if (input.scope === "selection" && !(input.targetIds && input.targetIds.length))
+    return "Tick at least one product.";
   return null;
 }
 
@@ -74,6 +77,7 @@ async function callMutate(input: EditInput, confirm: boolean, dryRun: boolean): 
     p_list_id: current.id,
     p_target_id: input.targetId ?? null,
     p_target_category: input.targetCategory ?? null,
+    p_target_ids: input.targetIds ?? null,
     p_confirm_below_floor: confirm,
     p_dry_run: dryRun,
   });

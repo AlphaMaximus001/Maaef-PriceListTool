@@ -65,19 +65,24 @@ export async function createVersionAndEdit(
 
   const supabase = await createClient();
 
-  // Remap a single-product target: the copy has a new row id for the same SKU.
+  // Copy rows have new ids for the same SKUs — remap single / selection targets.
   let targetId = input.targetId ?? null;
+  let targetIds = input.targetIds ?? null;
+  const remapBySku = async (ids: string[]): Promise<string[]> => {
+    const { data: origs } = await supabase.from("my_products").select("sku").in("id", ids);
+    const skus = (origs ?? []).map((r) => r.sku);
+    const { data: copies } = await supabase
+      .from("my_products")
+      .select("id")
+      .eq("list_id", newId)
+      .in("sku", skus);
+    return (copies ?? []).map((r) => r.id);
+  };
   if (input.scope === "single" && input.targetId) {
-    const { data: orig } = await supabase.from("my_products").select("sku").eq("id", input.targetId).single();
-    if (orig) {
-      const { data: copy } = await supabase
-        .from("my_products")
-        .select("id")
-        .eq("list_id", newId)
-        .eq("sku", orig.sku)
-        .single();
-      targetId = copy?.id ?? null;
-    }
+    targetId = (await remapBySku([input.targetId]))[0] ?? null;
+  }
+  if (input.scope === "selection" && input.targetIds?.length) {
+    targetIds = await remapBySku(input.targetIds);
   }
 
   const { data, error: editErr } = await supabase.rpc("mutate_prices", {
@@ -87,6 +92,7 @@ export async function createVersionAndEdit(
     p_list_id: newId,
     p_target_id: targetId,
     p_target_category: input.targetCategory ?? null,
+    p_target_ids: targetIds,
     p_confirm_below_floor: false,
     p_dry_run: false,
   });

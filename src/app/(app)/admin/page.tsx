@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession, CAPABILITIES, type Capability, type AppRole } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
 import { AdminClient, type AdminUser, type CapabilityMeta } from "./admin-client";
+import { MarginSettings } from "./margin-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function AdminPage() {
 
   const supabase = await createClient();
 
-  const [{ data: profiles }, { data: caps }, { data: roleDefaults }, { data: grants }] =
+  const [{ data: profiles }, { data: caps }, { data: roleDefaults }, { data: grants }, { data: marginSetting }] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -31,7 +32,10 @@ export default async function AdminPage() {
       supabase.from("capabilities").select("key, label, description").order("key"),
       supabase.from("role_defaults").select("role, capability_key, granted"),
       supabase.from("capability_grants").select("user_id, capability_key, granted"),
+      supabase.from("app_settings").select("value").eq("key", "default_margin").maybeSingle(),
     ]);
+
+  const dm = (marginSetting?.value as { type?: "percent" | "flat"; value?: number } | null) ?? {};
 
   // Build the role-default lookup: role -> cap -> bool.
   const defaultsByRole: Record<string, Record<string, boolean>> = {};
@@ -75,10 +79,11 @@ export default async function AdminPage() {
   });
 
   return (
-    <AdminClient
-      users={users}
-      capabilities={capList}
-      currentUserId={session.profile.id}
-    />
+    <div className="mx-auto max-w-5xl space-y-6">
+      <AdminClient users={users} capabilities={capList} currentUserId={session.profile.id} />
+      {session.can.edit_specs && (
+        <MarginSettings type={dm.type ?? "percent"} value={dm.value ?? 0} />
+      )}
+    </div>
   );
 }

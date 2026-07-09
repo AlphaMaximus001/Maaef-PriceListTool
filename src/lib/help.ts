@@ -96,6 +96,26 @@ export const HELP = {
     body:
       "A dry run. Shows how many products are in scope, how many would actually change, and how many would land at or below the private cost floor — before anything is written. You then confirm or cancel. No prices change until you apply.",
   },
+  "mylist.search": {
+    title: "Search",
+    body:
+      "Type any part of a SKU, product name, or category to narrow the grid. Combine with the scope 'Ticked products' to hand-pick exactly which items a price change hits — tick the rows you want, then apply.",
+  },
+  "mylist.muspMp": {
+    title: "MUSP & MP columns",
+    body:
+      "MUSP = the highest competitor price for the item minus ₹1 (your ceiling to still be the priciest-but-one; blank if no competitor sells it). MP = your production cost + margin (a floor that protects your profit). Both are visible only with the 'View MP & MUSP' permission and are read-only; admins set the underlying cost/margin from the SKU detail panel.",
+  },
+  "mylist.detail": {
+    title: "SKU detail panel",
+    body:
+      "Click any row to open it here. Admins can edit the name, category, spec attributes, cost, and margin — on a locked original these edits save into a new named list, never the original. Everyone sees the full change history (who changed what, when) and the flags on this item.",
+  },
+  "mylist.flags": {
+    title: "Flags",
+    body:
+      "Raise a flag on an item with a reason so teammates know something needs attention (wrong price, missing spec, etc.). Multiple people can flag the same item. Flagged rows show 🚩 and can be filtered with 'Flagged only'. A flag stays — and carries into new versions — until the person who raised it (or an admin) resolves it. Flags are internal; they never appear on the PDF.",
+  },
   "mylist.showCategory": {
     title: "Show category",
     body:
@@ -210,6 +230,11 @@ export const HELP = {
     title: "Active",
     body:
       "Switch off to deactivate an account: they can no longer sign in or do anything, but their history is kept. Switch back on to restore access. You can't deactivate yourself.",
+  },
+  "admin.defaultMargin": {
+    title: "Default margin",
+    body:
+      "The margin added to a product's cost to compute MP when that product has no per-product margin set. Choose a percentage of cost or a flat rupee amount. Individual products can override this from their SKU detail panel.",
   },
   "admin.capabilities": {
     title: "Capabilities",
