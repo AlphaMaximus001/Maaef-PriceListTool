@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/capabilities";
 import { SidebarNav, type NavItem } from "@/components/app-shell/sidebar-nav";
 import { UserMenu } from "@/components/app-shell/user-menu";
+import { RealtimeWatcher } from "@/components/realtime-watcher";
 
 export default async function AppLayout({
   children,
@@ -50,6 +51,7 @@ export default async function AppLayout({
         </header>
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </div>
+      <RealtimeWatcher />
     </div>
   );
 }
