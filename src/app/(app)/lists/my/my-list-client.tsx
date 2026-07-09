@@ -371,7 +371,7 @@ export function MyListClient({
       )}
 
       <Dialog open={!!preview} onOpenChange={(o) => { if (!o) { revertFn?.(); close(); } }}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {hasBreaches && showCost ? (
@@ -398,32 +398,54 @@ export function MyListClient({
               )}
             </div>
 
-            {/* Cost-bearing breach detail is only ever sent to view_cost users. */}
-            {showCost && hasBreaches && preview?.breaches?.length ? (
-              <div className="max-h-48 overflow-auto rounded-md border">
+            {/* The exact per-product changes (old -> new). */}
+            {preview?.changes?.length ? (
+              <div className="max-h-72 overflow-auto rounded-md border">
                 <table className="w-full text-xs">
-                  <thead className="bg-muted text-muted-foreground">
+                  <thead className="sticky top-0 bg-muted text-muted-foreground">
                     <tr>
-                      <th className="p-2 text-left">New price</th>
-                      <th className="p-2 text-left">Floor</th>
+                      <th className="p-2 text-left">SKU</th>
+                      <th className="p-2 text-left">Product</th>
+                      <th className="p-2 text-right">Old</th>
+                      <th className="p-2 text-right">New</th>
+                      <th className="p-2 text-right">Change</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.breaches.map((b) => (
-                      <tr key={b.product_id} className="border-t">
-                        <td className="p-2 text-maaef-red">{formatPrice(b.new_price)}</td>
-                        <td className="p-2">{formatPrice(b.floor)}</td>
-                      </tr>
-                    ))}
+                    {preview.changes.map((c, i) => {
+                      const delta = c.new - c.old;
+                      return (
+                        <tr key={`${c.sku}-${i}`} className={"border-t " + (c.breaches ? "bg-maaef-red/5" : "")}>
+                          <td className="p-2 font-mono">{c.sku}</td>
+                          <td className="p-2">
+                            {c.name}
+                            {c.breaches && <span className="ml-1 text-maaef-red" title="At or below cost floor">▼</span>}
+                          </td>
+                          <td className="p-2 text-right text-muted-foreground line-through">{formatPrice(c.old)}</td>
+                          <td className="p-2 text-right font-medium">{formatPrice(c.new)}</td>
+                          <td className={"p-2 text-right " + (delta > 0 ? "text-green-700" : delta < 0 ? "text-maaef-red" : "")}>
+                            {delta > 0 ? "+" : ""}{formatPrice(delta)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            ) : null}
+            ) : (
+              <p className="rounded-md bg-muted p-3 text-muted-foreground">Nothing would change.</p>
+            )}
+
+            {(preview?.changed ?? 0) > (preview?.changes?.length ?? 0) && (
+              <p className="text-xs text-muted-foreground">
+                Showing the first {preview?.changes?.length} of {preview?.changed} changes.
+              </p>
+            )}
 
             {blockedSilently && (
               <p className="rounded-md bg-muted p-3 text-muted-foreground">
                 {preview?.breach_count} change(s) fall at or below the allowed floor and will be
-                blocked. The rest will be applied.
+                blocked (not shown). The rest will be applied.
               </p>
             )}
           </div>

@@ -31,6 +31,15 @@ export type Breach = {
   floor: number;
 };
 
+export type ChangeRow = {
+  sku: string;
+  name: string;
+  category: string | null;
+  old: number;
+  new: number;
+  breaches: boolean;
+};
+
 export type EditResult = {
   status: "preview" | "needs_confirm" | "applied" | "error";
   message?: string;
@@ -41,6 +50,7 @@ export type EditResult = {
   blocked?: number;
   breach_count?: number;
   breaches?: Breach[]; // only present for view_cost users
+  changes?: ChangeRow[]; // per-product old -> new (capped), for the preview
   batch_id?: string;
   can_view_cost?: boolean;
 };
