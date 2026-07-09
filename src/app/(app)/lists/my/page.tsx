@@ -111,7 +111,7 @@ export default async function MyListPage() {
         </div>
         {can.export_pdf && (
           <div className="flex items-center gap-1.5">
-            <ExportPdfButton href="/api/export/my/list" filename="maaef-products.pdf" />
+            <ExportPdfButton href="/api/export/my/list" filename="maaef-products.pdf" canIntel={can.view_margin} />
             <InfoTip k="mylist.exportPdf" side="bottom" />
           </div>
         )}
