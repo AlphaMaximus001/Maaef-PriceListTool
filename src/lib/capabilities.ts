@@ -4,6 +4,8 @@ import { cache } from "react";
 /** The full set of gated actions. Mirrors the `capabilities` table keys. */
 export const CAPABILITIES = [
   "view_cost",
+  "view_margin",
+  "edit_specs",
   "edit_price",
   "bulk_edit",
   "upload_competitor",

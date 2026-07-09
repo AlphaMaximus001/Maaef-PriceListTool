@@ -14,6 +14,8 @@ import { Check, X } from "lucide-react";
 
 const CAP_LABELS: Record<Capability, string> = {
   view_cost: "View cost floor",
+  view_margin: "View MP & MUSP",
+  edit_specs: "Edit product details",
   edit_price: "Edit prices",
   bulk_edit: "Bulk / category edit",
   upload_competitor: "Upload competitor lists",
