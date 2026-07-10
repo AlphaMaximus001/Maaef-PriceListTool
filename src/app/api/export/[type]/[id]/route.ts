@@ -39,7 +39,7 @@ export async function GET(
     if (!currentList) return new NextResponse("No list", { status: 404 });
     const { data } = await supabase
       .from("my_products")
-      .select("id, sku, product_name, category, price, currency")
+      .select("id, sku, product_name, display_name, category, price, currency")
       .eq("active", true)
       .eq("list_id", currentList.id)
       .order("category")
@@ -56,7 +56,8 @@ export async function GET(
     title = currentList.name;
     items = (data ?? []).map((p) => ({
       sku: p.sku,
-      product_name: p.product_name,
+      // Client-facing PDF shows the custom display alias when one is set.
+      product_name: p.display_name || p.product_name,
       category: p.category,
       price: Number(p.price),
       currency: p.currency,

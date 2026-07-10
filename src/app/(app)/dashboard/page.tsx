@@ -22,6 +22,7 @@ const CAP_LABELS: Record<Capability, string> = {
   confirm_match: "Confirm matches",
   export_pdf: "Export branded PDF",
   manage_users: "Manage users",
+  manage_documents: "Manage documents",
 };
 
 const PHASES: { n: number; name: string; status: "live" | "next" | "planned" }[] = [

@@ -34,7 +34,7 @@ export default async function MyListPage() {
 
   const { data: products } = await supabase
     .from("my_products")
-    .select("id, sku, product_name, category, price, currency, active")
+    .select("id, sku, product_name, display_name, category, price, currency, active")
     .eq("list_id", currentList.id)
     .eq("active", true)
     .order("category", { ascending: true })
@@ -70,6 +70,7 @@ export default async function MyListPage() {
     id: p.id,
     sku: p.sku,
     product_name: p.product_name,
+    display_name: p.display_name ?? null,
     category: p.category ?? "—",
     price: Number(p.price),
     currency: p.currency,

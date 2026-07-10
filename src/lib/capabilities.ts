@@ -12,6 +12,7 @@ export const CAPABILITIES = [
   "confirm_match",
   "export_pdf",
   "manage_users",
+  "manage_documents",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];

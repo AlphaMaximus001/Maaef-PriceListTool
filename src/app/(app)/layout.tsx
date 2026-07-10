@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/capabilities";
-import { SidebarNav, type NavItem } from "@/components/app-shell/sidebar-nav";
+import { SidebarNav, type NavGroup } from "@/components/app-shell/sidebar-nav";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { RealtimeWatcher } from "@/components/realtime-watcher";
 
@@ -14,19 +14,51 @@ export default async function AppLayout({
 
   const { profile, can } = session;
 
-  // Nav reflects the §8 screen list. Items not yet built are flagged
-  // comingSoon; Admin is gated by manage_users (invariant 5 — resolver, not role).
-  const items: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-    { href: "/lists", label: "Lists", icon: "lists" },
-    { href: "/overlap", label: "Undercut radar", icon: "overlap" },
-    { href: "/unique", label: "Pricing power", icon: "unique" },
-    { href: "/market-gap", label: "Market gap", icon: "gap" },
-    { href: "/matches", label: "Match review", icon: "matches" },
-    { href: "/configurator", label: "Configurator", icon: "configurator" },
-    { href: "/history", label: "Edit history", icon: "history" },
+  // Navigation is organised into the seven sections of the system. Sections
+  // whose items are all gated away for this user collapse automatically
+  // (SidebarNav drops empty groups). All access is resolver-driven (invariant 5).
+  const groups: NavGroup[] = [
+    { title: "", items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
+    {
+      title: "Upload hub",
+      items: [{ href: "/lists", label: "Price lists", icon: "lists" }],
+    },
+    {
+      title: "View & compare",
+      items: [
+        { href: "/lists/my", label: "My products", icon: "lists" },
+        { href: "/overlap", label: "Undercut radar", icon: "overlap" },
+        { href: "/unique", label: "Pricing power", icon: "unique" },
+        { href: "/market-gap", label: "Market gap", icon: "gap" },
+        { href: "/matches", label: "Match review", icon: "matches" },
+        { href: "/flags", label: "Flag history", icon: "flags" },
+      ],
+    },
+    {
+      title: "Edit & export",
+      items: [
+        { href: "/configurator", label: "Configurator", icon: "configurator" },
+        { href: "/history", label: "Edit history", icon: "history" },
+      ],
+    },
+    ...(can.edit_specs
+      ? [{
+          title: "Customization",
+          items: [{ href: "/customize", label: "Customize SKUs", icon: "customize" as const }],
+        }]
+      : []),
+    {
+      title: "Documents",
+      items: [{ href: "/documents", label: "Documents", icon: "documents" }],
+    },
     ...(can.manage_users
-      ? [{ href: "/admin", label: "Admin", icon: "admin" as const }]
+      ? [{
+          title: "Administration",
+          items: [
+            { href: "/admin", label: "Admin & permissions", icon: "admin" as const },
+            { href: "/logs", label: "Action logs", icon: "logs" as const },
+          ],
+        }]
       : []),
   ];
 
@@ -39,7 +71,9 @@ export default async function AppLayout({
           </div>
           <span className="font-semibold tracking-tight">Maaef Pricing</span>
         </div>
-        <SidebarNav items={items} />
+        <div className="flex-1 overflow-y-auto">
+          <SidebarNav groups={groups} />
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

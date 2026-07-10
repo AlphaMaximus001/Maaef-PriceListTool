@@ -242,6 +242,49 @@ export const HELP = {
       "Fine-grained overrides for one person. Each ability is set to Default (follow the role), Allow (grant it even if the role wouldn't), or Deny (block it even if the role would allow it). Example: give one trusted Editor 'View cost floor', or take 'Bulk edit' away from someone still learning.",
   },
 
+  // ── Flag history (§3) ─────────────────────────────────────────────────────────
+  "flags.page": {
+    title: "Flag history",
+    body:
+      "Every flag ever raised on the working list, in one place. Open flags still need attention; resolved flags stay here permanently as a training record — what was caught, who caught it, and who closed it. Raise and resolve flags from a product's detail panel on the grid. Flags are internal and never appear on a client PDF.",
+  },
+
+  // ── SKU customization (§5) ────────────────────────────────────────────────────
+  "customize.page": {
+    title: "Customize SKUs",
+    body:
+      "Add brand-new items to your list and give any SKU a friendly display name for clients. Everything here saves to your current working version — if you're on a locked Original, it asks you to name a new version first, so the Original is never touched.",
+  },
+  "customize.newItem": {
+    title: "New item",
+    body:
+      "Creates a product that doesn't exist yet: give it a SKU code (its permanent identifier, unique within the list), a name, a category, and a price. The price becomes the item's price on the working version immediately. If you can see cost, you may also set its private cost floor.",
+  },
+  "customize.alias": {
+    title: "Custom display names",
+    body:
+      "A display name is a friendly label shown in place of the raw SKU code — e.g. show 'Premium Vinyl Banner' instead of 'MAAEF-C6-2'. The underlying SKU code never changes, so matches, history, and imports stay intact. Leave the box blank to go back to showing the code.",
+  },
+
+  // ── Action logs (§6) ──────────────────────────────────────────────────────────
+  "logs.page": {
+    title: "Action logs",
+    body:
+      "A single, read-only timeline of everything that happened across all lists: price changes, product edits, new items, and flag activity — each with who did it and when. Cost and margin values are hidden from anyone without cost permission. Use it to answer 'who changed this, and when?'.",
+  },
+
+  // ── Documents (§7) ────────────────────────────────────────────────────────────
+  "documents.page": {
+    title: "Documents",
+    body:
+      "A shared shelf for operational paperwork — GST certificates, trade licenses, signed agreements. Anyone signed in can download; only people with the document permission can upload or remove. Files are stored privately and served through short-lived download links.",
+  },
+  "documents.upload": {
+    title: "Upload a document",
+    body:
+      "Add a file (PDF, image, or spreadsheet up to 25 MB), give it a clear title, and optionally tag it with a category like GST or License so it's easy to find later. It becomes available to the whole team immediately.",
+  },
+
   // ── Upload dialogs ──────────────────────────────────────────────────────────
   "upload.template": {
     title: "Templates",
