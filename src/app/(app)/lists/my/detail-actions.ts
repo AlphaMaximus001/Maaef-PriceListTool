@@ -209,6 +209,7 @@ export async function addFlag(productId: string, reason: string): Promise<{ ok: 
   });
   if (error) return { ok: false, message: error.message };
   revalidatePath("/lists/my");
+  revalidatePath("/flags");
   return { ok: true, message: "Flagged." };
 }
 
@@ -222,6 +223,7 @@ export async function resolveFlag(flagId: string): Promise<{ ok: boolean; messag
     .eq("id", flagId);
   if (error) return { ok: false, message: "Only the person who flagged it (or an admin) can resolve it." };
   revalidatePath("/lists/my");
+  revalidatePath("/flags");
   return { ok: true, message: "Flag resolved." };
 }
 

@@ -16,6 +16,7 @@ import {
   Wand2,
   ScrollText,
   FolderArchive,
+  Package,
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ const ICONS = {
   configurator: PencilRuler,
   history: History,
   admin: Settings,
+  products: Package,
   flags: Flag,
   customize: Wand2,
   logs: ScrollText,

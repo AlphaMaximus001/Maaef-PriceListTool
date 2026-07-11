@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/capabilities";
-import { SidebarNav, type NavGroup } from "@/components/app-shell/sidebar-nav";
+import { SidebarNav, type NavGroup, type NavItem } from "@/components/app-shell/sidebar-nav";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { RealtimeWatcher } from "@/components/realtime-watcher";
 
@@ -14,53 +14,32 @@ export default async function AppLayout({
 
   const { profile, can } = session;
 
-  // Navigation is organised into the seven sections of the system. Sections
-  // whose items are all gated away for this user collapse automatically
-  // (SidebarNav drops empty groups). All access is resolver-driven (invariant 5).
-  const groups: NavGroup[] = [
-    { title: "", items: [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" }] },
-    {
-      title: "Upload hub",
-      items: [{ href: "/lists", label: "Price lists", icon: "lists" }],
-    },
-    {
-      title: "View & compare",
-      items: [
-        { href: "/lists/my", label: "My products", icon: "lists" },
-        { href: "/overlap", label: "Undercut radar", icon: "overlap" },
-        { href: "/unique", label: "Pricing power", icon: "unique" },
-        { href: "/market-gap", label: "Market gap", icon: "gap" },
-        { href: "/matches", label: "Match review", icon: "matches" },
-        { href: "/flags", label: "Flag history", icon: "flags" },
-      ],
-    },
-    {
-      title: "Edit & export",
-      items: [
-        { href: "/configurator", label: "Configurator", icon: "configurator" },
-        { href: "/history", label: "Edit history", icon: "history" },
-      ],
-    },
+  // One flat menu — plain names, no section headers. Items the current user
+  // can't use (Customize / Admin / Action logs) are simply omitted for them;
+  // everything else is always visible. All gating is resolver-driven.
+  const items: NavItem[] = [
+    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+    { href: "/lists", label: "Price Lists", icon: "lists" },
+    { href: "/lists/my", label: "My Products", icon: "products" },
+    { href: "/overlap", label: "Undercut Radar", icon: "overlap" },
+    { href: "/unique", label: "Pricing Power", icon: "unique" },
+    { href: "/market-gap", label: "Market Gap", icon: "gap" },
+    { href: "/matches", label: "Match Review", icon: "matches" },
+    { href: "/configurator", label: "Configurator", icon: "configurator" },
+    { href: "/flags", label: "Flags", icon: "flags" },
+    { href: "/history", label: "Edit History", icon: "history" },
     ...(can.edit_specs
-      ? [{
-          title: "Customization",
-          items: [{ href: "/customize", label: "Customize SKUs", icon: "customize" as const }],
-        }]
+      ? [{ href: "/customize", label: "Customize SKUs", icon: "customize" as const }]
       : []),
-    {
-      title: "Documents",
-      items: [{ href: "/documents", label: "Documents", icon: "documents" }],
-    },
+    { href: "/documents", label: "Documents", icon: "documents" },
     ...(can.manage_users
-      ? [{
-          title: "Administration",
-          items: [
-            { href: "/admin", label: "Admin & permissions", icon: "admin" as const },
-            { href: "/logs", label: "Action logs", icon: "logs" as const },
-          ],
-        }]
+      ? [
+          { href: "/admin", label: "Admin", icon: "admin" as const },
+          { href: "/logs", label: "Action Logs", icon: "logs" as const },
+        ]
       : []),
   ];
+  const groups: NavGroup[] = [{ title: "", items }];
 
   return (
     <div className="flex min-h-screen">

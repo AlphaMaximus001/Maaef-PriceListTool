@@ -244,9 +244,14 @@ export const HELP = {
 
   // ── Flag history (§3) ─────────────────────────────────────────────────────────
   "flags.page": {
-    title: "Flag history",
+    title: "Flags",
     body:
-      "Every flag ever raised on the working list, in one place. Open flags still need attention; resolved flags stay here permanently as a training record — what was caught, who caught it, and who closed it. Raise and resolve flags from a product's detail panel on the grid. Flags are internal and never appear on a client PDF.",
+      "Raise, track, and resolve flags — all here. Open flags still need attention; resolved flags stay permanently as a training record (what was caught, who caught it, who closed it). Anyone can raise a flag; only the person who raised it, or an admin, can resolve it. A flag carries into new versions until resolved. Flags are internal and never appear on a client PDF.",
+  },
+  "flags.raise": {
+    title: "Raise a flag",
+    body:
+      "Search for the product, write what needs attention (wrong price, missing spec, anything), and raise the flag. It immediately shows under Open for the whole team, and the flagged item is marked 🚩 on the products grid.",
   },
 
   // ── SKU customization (§5) ────────────────────────────────────────────────────
