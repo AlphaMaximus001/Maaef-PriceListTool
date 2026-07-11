@@ -14,10 +14,14 @@ import { InfoTip } from "@/components/info-tip";
 export const dynamic = "force-dynamic";
 
 export default async function MyListPage() {
-  const { can } = await requireSession();
   const supabase = await createClient();
 
-  const [currentList, lists] = await Promise.all([getCurrentList(), getLists()]);
+  // Session and list resolution are independent — resolve them together.
+  const [{ can }, currentList, lists] = await Promise.all([
+    requireSession(),
+    getCurrentList(),
+    getLists(),
+  ]);
 
   if (!currentList) {
     return (
@@ -32,54 +36,56 @@ export default async function MyListPage() {
     );
   }
 
-  // Load ALL products (paginated — a single request caps at 1000 rows).
   type RawProduct = {
     id: string; sku: string; product_name: string; display_name: string | null;
     category: string | null; price: number; currency: string;
   };
-  const products = await getAllListProducts<RawProduct>(currentList.id);
 
-  // Cost is fetched only when permitted. RLS would return nothing anyway —
-  // this is belt-and-braces so cost never enters a non-view_cost response.
-  const costByProduct = new Map<string, number>();
-  if (can.view_cost) {
+  // These four datasets are independent, so fetch them CONCURRENTLY instead of
+  // one after another — total time is the slowest single fetch, not their sum.
+  const loadProducts = () => getAllListProducts<RawProduct>(currentList.id);
+
+  const loadCosts = async () => {
+    const map = new Map<string, number>();
+    // Cost only when permitted (RLS also blocks it — belt and braces).
+    if (!can.view_cost) return map;
     for (let from = 0; ; from += PAGE_SIZE) {
-      const { data: costs } = await supabase
-        .from("product_costs")
-        .select("product_id, cost")
-        .range(from, from + PAGE_SIZE - 1);
-      if (!costs || costs.length === 0) break;
-      for (const c of costs) costByProduct.set(c.product_id, Number(c.cost));
-      if (costs.length < PAGE_SIZE) break;
+      const { data } = await supabase.from("product_costs").select("product_id, cost").range(from, from + PAGE_SIZE - 1);
+      if (!data || data.length === 0) break;
+      for (const c of data) map.set(c.product_id, Number(c.cost));
+      if (data.length < PAGE_SIZE) break;
     }
-  }
+    return map;
+  };
 
-  // MUSP / MP (view_margin only) via the gated DB function — also paginated.
-  const intel = new Map<string, { musp: number | null; mp: number | null }>();
-  if (can.view_margin) {
+  const loadIntel = async () => {
+    const map = new Map<string, { musp: number | null; mp: number | null }>();
+    if (!can.view_margin) return map;
     for (let from = 0; ; from += PAGE_SIZE) {
-      const { data: rows2 } = await supabase
-        .rpc("pricing_intel", { p_list_id: currentList.id })
-        .range(from, from + PAGE_SIZE - 1);
-      const batch = (rows2 as Array<{ product_id: string; musp: number | null; mp: number | null }>) ?? [];
+      const { data } = await supabase.rpc("pricing_intel", { p_list_id: currentList.id }).range(from, from + PAGE_SIZE - 1);
+      const batch = (data as Array<{ product_id: string; musp: number | null; mp: number | null }>) ?? [];
       if (batch.length === 0) break;
-      for (const r of batch) {
-        intel.set(r.product_id, { musp: r.musp != null ? Number(r.musp) : null, mp: r.mp != null ? Number(r.mp) : null });
-      }
+      for (const r of batch) map.set(r.product_id, { musp: r.musp != null ? Number(r.musp) : null, mp: r.mp != null ? Number(r.mp) : null });
       if (batch.length < PAGE_SIZE) break;
     }
-  }
+    return map;
+  };
 
-  // Open-flag counts for the current list.
-  const flagCount = new Map<string, number>();
-  const { data: openFlags } = await supabase
-    .from("flags")
-    .select("product_id")
-    .eq("list_id", currentList.id)
-    .eq("resolved", false);
-  for (const f of openFlags ?? []) flagCount.set(f.product_id, (flagCount.get(f.product_id) ?? 0) + 1);
+  const loadFlagCounts = async () => {
+    const map = new Map<string, number>();
+    const { data } = await supabase.from("flags").select("product_id").eq("list_id", currentList.id).eq("resolved", false);
+    for (const f of data ?? []) map.set(f.product_id, (map.get(f.product_id) ?? 0) + 1);
+    return map;
+  };
 
-  const rows: MyProductRow[] = (products ?? []).map((p) => ({
+  const [products, costByProduct, intel, flagCount] = await Promise.all([
+    loadProducts(),
+    loadCosts(),
+    loadIntel(),
+    loadFlagCounts(),
+  ]);
+
+  const rows: MyProductRow[] = products.map((p) => ({
     id: p.id,
     sku: p.sku,
     product_name: p.product_name,

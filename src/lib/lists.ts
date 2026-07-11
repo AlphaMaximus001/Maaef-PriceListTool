@@ -57,26 +57,40 @@ export const PAGE_SIZE = 1000;
 
 /**
  * Load EVERY active product in a list. A single Supabase request is capped at
- * 1000 rows, so we page through in 1000-row windows until a short page ends it.
- * Ordered by id for stable, non-overlapping pages (callers re-sort for display).
+ * 1000 rows. Most lists fit in one request; when they don't, we fetch the exact
+ * count once and pull the remaining pages in PARALLEL (not one-by-one), so a
+ * large list costs ~2 round trips instead of one per 1000 rows. Ordered by id
+ * for stable, non-overlapping pages (callers re-sort for display).
  */
 export async function getAllListProducts<T = Record<string, unknown>>(
   listId: string,
   columns = "id, sku, product_name, display_name, category, price, currency",
 ): Promise<T[]> {
   const supabase = await createClient();
-  const all: T[] = [];
-  for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
+  const page = (from: number) =>
+    supabase
       .from("my_products")
       .select(columns)
       .eq("list_id", listId)
       .eq("active", true)
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
-    if (error || !data || data.length === 0) break;
-    all.push(...(data as T[]));
-    if (data.length < PAGE_SIZE) break;
-  }
-  return all;
+
+  const { data: first } = await page(0);
+  const firstRows = (first as T[] | null) ?? [];
+  if (firstRows.length < PAGE_SIZE) return firstRows;
+
+  // More than one page — learn the total, then fetch the rest concurrently.
+  const { count } = await supabase
+    .from("my_products")
+    .select("id", { count: "exact", head: true })
+    .eq("list_id", listId)
+    .eq("active", true);
+  const total = count ?? firstRows.length;
+
+  const rest: ReturnType<typeof page>[] = [];
+  for (let from = PAGE_SIZE; from < total; from += PAGE_SIZE) rest.push(page(from));
+  const pages = await Promise.all(rest);
+
+  return firstRows.concat(...pages.map((p) => (p.data as T[] | null) ?? []));
 }
