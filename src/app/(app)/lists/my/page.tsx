@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentList, getLists } from "@/lib/lists";
+import { getCurrentList, getLists, getAllListProducts, PAGE_SIZE } from "@/lib/lists";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Lock } from "lucide-react";
@@ -32,28 +32,41 @@ export default async function MyListPage() {
     );
   }
 
-  const { data: products } = await supabase
-    .from("my_products")
-    .select("id, sku, product_name, display_name, category, price, currency, active")
-    .eq("list_id", currentList.id)
-    .eq("active", true)
-    .order("category", { ascending: true })
-    .order("product_name", { ascending: true });
+  // Load ALL products (paginated — a single request caps at 1000 rows).
+  type RawProduct = {
+    id: string; sku: string; product_name: string; display_name: string | null;
+    category: string | null; price: number; currency: string;
+  };
+  const products = await getAllListProducts<RawProduct>(currentList.id);
 
   // Cost is fetched only when permitted. RLS would return nothing anyway —
   // this is belt-and-braces so cost never enters a non-view_cost response.
-  let costByProduct = new Map<string, number>();
+  const costByProduct = new Map<string, number>();
   if (can.view_cost) {
-    const { data: costs } = await supabase.from("product_costs").select("product_id, cost");
-    costByProduct = new Map((costs ?? []).map((c) => [c.product_id, Number(c.cost)]));
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data: costs } = await supabase
+        .from("product_costs")
+        .select("product_id, cost")
+        .range(from, from + PAGE_SIZE - 1);
+      if (!costs || costs.length === 0) break;
+      for (const c of costs) costByProduct.set(c.product_id, Number(c.cost));
+      if (costs.length < PAGE_SIZE) break;
+    }
   }
 
-  // MUSP / MP (view_margin only) via the gated DB function.
+  // MUSP / MP (view_margin only) via the gated DB function — also paginated.
   const intel = new Map<string, { musp: number | null; mp: number | null }>();
   if (can.view_margin) {
-    const { data: rows2 } = await supabase.rpc("pricing_intel", { p_list_id: currentList.id });
-    for (const r of (rows2 as Array<{ product_id: string; musp: number | null; mp: number | null }>) ?? []) {
-      intel.set(r.product_id, { musp: r.musp != null ? Number(r.musp) : null, mp: r.mp != null ? Number(r.mp) : null });
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data: rows2 } = await supabase
+        .rpc("pricing_intel", { p_list_id: currentList.id })
+        .range(from, from + PAGE_SIZE - 1);
+      const batch = (rows2 as Array<{ product_id: string; musp: number | null; mp: number | null }>) ?? [];
+      if (batch.length === 0) break;
+      for (const r of batch) {
+        intel.set(r.product_id, { musp: r.musp != null ? Number(r.musp) : null, mp: r.mp != null ? Number(r.mp) : null });
+      }
+      if (batch.length < PAGE_SIZE) break;
     }
   }
 

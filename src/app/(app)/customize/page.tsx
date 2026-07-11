@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/capabilities";
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentList } from "@/lib/lists";
+import { getCurrentList, getAllListProducts } from "@/lib/lists";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Lock } from "lucide-react";
@@ -25,19 +24,14 @@ export default async function CustomizePage() {
   }
 
   const current = await getCurrentList();
-  const supabase = await createClient();
 
-  const { data: products } = current
-    ? await supabase
-        .from("my_products")
-        .select("id, sku, product_name, display_name, category, price, currency")
-        .eq("list_id", current.id)
-        .eq("active", true)
-        .order("category", { ascending: true })
-        .order("product_name", { ascending: true })
-    : { data: [] };
+  type RawProduct = {
+    id: string; sku: string; product_name: string; display_name: string | null;
+    category: string | null; price: number; currency: string;
+  };
+  const products = current ? await getAllListProducts<RawProduct>(current.id) : [];
 
-  const rows: CustomizeRow[] = (products ?? []).map((p) => ({
+  const rows: CustomizeRow[] = products.map((p) => ({
     id: p.id,
     sku: p.sku,
     productName: p.product_name,

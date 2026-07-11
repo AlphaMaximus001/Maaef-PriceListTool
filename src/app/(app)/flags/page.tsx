@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentList } from "@/lib/lists";
+import { getCurrentList, getAllListProducts } from "@/lib/lists";
 import { Card, CardContent } from "@/components/ui/card";
 import { InfoTip } from "@/components/info-tip";
 import { FlagsClient, type FlagProduct, type OpenFlag, type ResolvedFlag } from "./flags-client";
@@ -42,14 +42,9 @@ export default async function FlagsPage() {
     );
   }
 
-  const [{ data: products }, { data: flagData }] = await Promise.all([
-    supabase
-      .from("my_products")
-      .select("id, sku, product_name, display_name, category")
-      .eq("list_id", current.id)
-      .eq("active", true)
-      .order("category")
-      .order("product_name"),
+  type RawProduct = { id: string; sku: string; product_name: string; display_name: string | null; category: string | null };
+  const [products, { data: flagData }] = await Promise.all([
+    getAllListProducts<RawProduct>(current.id, "id, sku, product_name, display_name, category"),
     supabase
       .from("flags")
       .select(
@@ -62,7 +57,7 @@ export default async function FlagsPage() {
       .order("created_at", { ascending: false }),
   ]);
 
-  const productList: FlagProduct[] = (products ?? []).map((p) => ({
+  const productList: FlagProduct[] = products.map((p) => ({
     id: p.id,
     sku: p.sku,
     label: p.display_name || p.product_name,

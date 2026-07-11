@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentList } from "@/lib/lists";
+import { getCurrentList, getAllListProducts, PAGE_SIZE } from "@/lib/lists";
 import { buildListHtml, type PdfItem, type PdfFooter } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
 
@@ -37,24 +37,42 @@ export async function GET(
     // Export the list the user is currently working in (its latest saved edits).
     const currentList = await getCurrentList();
     if (!currentList) return new NextResponse("No list", { status: 404 });
-    const { data } = await supabase
-      .from("my_products")
-      .select("id, sku, product_name, display_name, category, price, currency")
-      .eq("active", true)
-      .eq("list_id", currentList.id)
-      .order("category")
-      .order("product_name");
+    // All products (paginated — a single request caps at 1000), ordered by the
+    // category number encoded in the SKU (C1, C2, …) then serial, so the PDF
+    // matches the on-screen grid order.
+    type RawProduct = {
+      id: string; sku: string; product_name: string; display_name: string | null;
+      category: string | null; price: number; currency: string;
+    };
+    const catOrder = (sku: string) => {
+      const m = /C(\d+)-/i.exec(sku);
+      return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+    };
+    const serial = (sku: string) => {
+      const m = /C\d+-(\d+)/i.exec(sku);
+      return m ? parseInt(m[1], 10) : Number.MAX_SAFE_INTEGER;
+    };
+    const data = (await getAllListProducts<RawProduct>(currentList.id)).sort(
+      (a, b) => catOrder(a.sku) - catOrder(b.sku) || serial(a.sku) - serial(b.sku) || a.product_name.localeCompare(b.product_name),
+    );
 
     const intelById = new Map<string, { musp: number | null; mp: number | null }>();
     if (showIntel) {
-      const { data: pi } = await supabase.rpc("pricing_intel", { p_list_id: currentList.id });
-      for (const r of (pi as Array<{ product_id: string; musp: number | null; mp: number | null }>) ?? []) {
-        intelById.set(r.product_id, { musp: r.musp != null ? Number(r.musp) : null, mp: r.mp != null ? Number(r.mp) : null });
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const { data: pi } = await supabase
+          .rpc("pricing_intel", { p_list_id: currentList.id })
+          .range(from, from + PAGE_SIZE - 1);
+        const batch = (pi as Array<{ product_id: string; musp: number | null; mp: number | null }>) ?? [];
+        if (batch.length === 0) break;
+        for (const r of batch) {
+          intelById.set(r.product_id, { musp: r.musp != null ? Number(r.musp) : null, mp: r.mp != null ? Number(r.mp) : null });
+        }
+        if (batch.length < PAGE_SIZE) break;
       }
     }
 
     title = currentList.name;
-    items = (data ?? []).map((p) => ({
+    items = data.map((p) => ({
       sku: p.sku,
       // Client-facing PDF shows the custom display alias when one is set.
       product_name: p.display_name || p.product_name,
