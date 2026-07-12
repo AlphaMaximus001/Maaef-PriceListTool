@@ -2,7 +2,19 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+
+/** The origin the request actually came from (works on Render behind a proxy). */
+async function requestOrigin(): Promise<string | null> {
+  const h = await headers();
+  const origin = h.get("origin");
+  if (origin) return origin;
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!host) return null;
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
+}
 
 export type LoginState = { error: string | null; notice?: string | null };
 
@@ -52,10 +64,17 @@ export async function signUp(
   }
 
   const supabase = await createClient();
+  // Point the confirmation link back at THIS deployment (not Supabase's Site
+  // URL default of localhost). The URL must also be in Supabase's Redirect URL
+  // allowlist, or Supabase falls back to the Site URL.
+  const origin = await requestOrigin();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName || email } },
+    options: {
+      data: { full_name: fullName || email },
+      ...(origin ? { emailRedirectTo: `${origin}/login` } : {}),
+    },
   });
 
   if (error) {
