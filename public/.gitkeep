@@ -1,0 +1,3 @@
+# Keeps the public/ directory in the repo so the Docker build's
+# `COPY --from=build /app/public ./public` step has a source to copy.
+# Next.js serves any static assets placed here (favicon, robots.txt, etc.).
