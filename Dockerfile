@@ -41,7 +41,11 @@ COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=build /app/node_modules/playwright ./node_modules/playwright
 COPY --from=build /app/node_modules/playwright-core ./node_modules/playwright-core
 
-RUN npx --yes playwright install --with-deps chromium \
+# Invoke the Playwright CLI through node directly. We only copied the package
+# folders (not node_modules/.bin), so `npx playwright` can't resolve the bin —
+# calling cli.js avoids that. Still runs as root here (before USER nextjs) so
+# --with-deps can apt-get the browser's OS libraries.
+RUN node node_modules/playwright/cli.js install --with-deps chromium \
   && chown -R nextjs:nodejs /opt/pw-browsers
 
 USER nextjs
