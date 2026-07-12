@@ -8,6 +8,7 @@ import {
   createUser,
   setRole,
   setActive,
+  setApproved,
   setCapabilityGrant,
   type ActionResult,
 } from "./actions";
@@ -67,6 +68,7 @@ export type AdminUser = {
   fullName: string | null;
   role: AppRole;
   active: boolean;
+  approved: boolean;
   effective: Record<Capability, EffectiveCap>;
 };
 
@@ -89,8 +91,30 @@ export function AdminClient({
 }) {
   const [pending, startTransition] = React.useTransition();
 
+  const approve = (userId: string, approved: boolean) => {
+    const fd = new FormData();
+    fd.set("user_id", userId);
+    fd.set("approved", String(approved));
+    startTransition(async () => {
+      notify(await setApproved(fd));
+    });
+  };
+
+  const pendingUsers = users.filter((u) => !u.approved);
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
+      {pendingUsers.length > 0 && (
+        <div className="rounded-lg border border-maaef-red/40 bg-maaef-blush/40 p-4">
+          <div className="font-medium text-maaef-purple">
+            {pendingUsers.length} account{pendingUsers.length > 1 ? "s" : ""} awaiting access
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            These people signed up and can see nothing until you grant access below.
+          </p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
@@ -120,6 +144,9 @@ export function AdminClient({
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>
+                  <span className="inline-flex items-center gap-1">Access <InfoTip k="admin.approved" /></span>
+                </TableHead>
+                <TableHead>
                   <span className="inline-flex items-center gap-1">Role <InfoTip k="admin.role" /></span>
                 </TableHead>
                 <TableHead>
@@ -132,10 +159,40 @@ export function AdminClient({
             </TableHeader>
             <TableBody>
               {users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow key={user.id} className={!user.approved ? "bg-maaef-blush/30" : undefined}>
                   <TableCell>
                     <div className="font-medium">{user.fullName || user.email}</div>
                     <div className="text-xs text-muted-foreground">{user.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    {user.approved ? (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="success">Approved</Badge>
+                        {user.id !== currentUserId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground"
+                            disabled={pending}
+                            onClick={() => approve(user.id, false)}
+                          >
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="muted">Pending</Badge>
+                        <Button
+                          size="sm"
+                          className="h-7"
+                          disabled={pending}
+                          onClick={() => approve(user.id, true)}
+                        >
+                          Approve
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Select

@@ -231,6 +231,11 @@ export const HELP = {
     body:
       "Switch off to deactivate an account: they can no longer sign in or do anything, but their history is kept. Switch back on to restore access. You can't deactivate yourself.",
   },
+  "admin.approved": {
+    title: "Access (approval)",
+    body:
+      "Anyone can sign up, but a new account is 'Pending' — it can sign in yet sees an 'Awaiting access' screen and no data at all (enforced in the database, not just hidden). Press Approve to grant access; they become a read-only viewer until you give them more. Revoke to cut access off again. Accounts you create from 'New user' are approved automatically.",
+  },
   "admin.defaultMargin": {
     title: "Default margin",
     body:

@@ -27,7 +27,7 @@ export default async function AdminPage() {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("id, email, full_name, role, active, created_at")
+        .select("id, email, full_name, role, active, approved, created_at")
         .order("created_at", { ascending: true }),
       supabase.from("capabilities").select("key, label, description").order("key"),
       supabase.from("role_defaults").select("role, capability_key, granted"),
@@ -74,6 +74,7 @@ export default async function AdminPage() {
       fullName: p.full_name,
       role,
       active: p.active,
+      approved: p.approved,
       effective,
     };
   });

@@ -93,7 +93,7 @@ export function LoginForm({ next }: { next: string }) {
               </p>
             )}
             <p className="text-xs text-muted-foreground">
-              New accounts start with read-only access. An admin can grant more later.
+              New accounts need an admin to approve access before any data is visible.
             </p>
             <SubmitButton mode="signup" />
           </form>

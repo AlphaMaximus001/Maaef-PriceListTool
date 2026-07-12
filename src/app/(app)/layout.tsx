@@ -3,6 +3,7 @@ import { getSession } from "@/lib/capabilities";
 import { SidebarNav, type NavGroup, type NavItem } from "@/components/app-shell/sidebar-nav";
 import { UserMenu } from "@/components/app-shell/user-menu";
 import { RealtimeWatcher } from "@/components/realtime-watcher";
+import { AwaitingAccess } from "@/components/awaiting-access";
 
 export default async function AppLayout({
   children,
@@ -13,6 +14,12 @@ export default async function AppLayout({
   if (!session) redirect("/login");
 
   const { profile, can } = session;
+
+  // Unapproved accounts never see the app — just an "Awaiting access" screen.
+  // (RLS already returns no data to them; this is the matching UX gate.)
+  if (!profile.approved) {
+    return <AwaitingAccess email={profile.email} />;
+  }
 
   // One flat menu — plain names, no section headers. Items the current user
   // can't use (Customize / Admin / Action logs) are simply omitted for them;

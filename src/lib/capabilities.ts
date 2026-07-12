@@ -24,6 +24,7 @@ export type Profile = {
   full_name: string | null;
   role: AppRole;
   active: boolean;
+  approved: boolean; // false until an admin grants access
 };
 
 /**

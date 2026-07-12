@@ -49,9 +49,10 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   }
 
   // Ensure profile reflects the chosen role/name (trigger defaults to viewer).
+  // Admin-created users are approved outright — they skip the sign-up queue.
   const { error: profileError } = await admin
     .from("profiles")
-    .update({ role, full_name: fullName || email })
+    .update({ role, full_name: fullName || email, approved: true })
     .eq("id", data.user.id);
   if (profileError) {
     return { ok: false, message: `User created, but role not set: ${profileError.message}` };
@@ -77,6 +78,24 @@ export async function setRole(formData: FormData): Promise<ActionResult> {
 
   revalidatePath("/admin");
   return { ok: true, message: `Role updated to ${role}.` };
+}
+
+/** Approve (or revoke approval for) an account — the sign-up access gate. */
+export async function setApproved(formData: FormData): Promise<ActionResult> {
+  const me = await requireCapability("manage_users");
+
+  const userId = String(formData.get("user_id") || "");
+  const approved = String(formData.get("approved") || "") === "true";
+  if (userId === me.profile.id && !approved) {
+    return { ok: false, message: "You can't revoke your own access." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").update({ approved }).eq("id", userId);
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/admin");
+  return { ok: true, message: approved ? "Access granted." : "Access revoked." };
 }
 
 export async function setActive(formData: FormData): Promise<ActionResult> {

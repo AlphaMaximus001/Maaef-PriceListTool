@@ -66,7 +66,7 @@ export async function signUp(
   if (!data.session) {
     return {
       error: null,
-      notice: "Account created. Check your email to confirm, then sign in. You'll start with read-only access — ask an admin for more.",
+      notice: "Account created. Check your email to confirm, then sign in. An admin must approve your access before you can see anything.",
     };
   }
 
