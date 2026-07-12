@@ -24,20 +24,23 @@ export default async function SkuDetailPage({
     .single();
   if (!product) notFound();
 
+  // This product's own add-ons, plus any legacy category/global ones (product_id
+  // null) that still apply to its category — kept for backward compatibility.
   const { data: addons } = await supabase
     .from("spec_addons")
-    .select("id, name, applies_to, price_delta, currency")
-    .eq("active", true);
+    .select("id, name, applies_to, price_delta, currency, product_id")
+    .eq("active", true)
+    .or(`product_id.eq.${id},product_id.is.null`);
 
-  // Applicable add-ons: those scoped to this category, or to all (null).
   const cat = (product.category ?? "").toLowerCase();
   const applicable: ConfigAddon[] = (addons ?? [])
-    .filter((a) => !a.applies_to || a.applies_to.toLowerCase() === cat)
+    .filter((a) => a.product_id === id || !a.applies_to || a.applies_to.toLowerCase() === cat)
     .map((a) => ({
       id: a.id,
       name: a.name,
       price_delta: Number(a.price_delta),
       currency: a.currency,
+      productScoped: a.product_id === id,
     }));
 
   const savedIds: string[] = Array.isArray((product.config as { addons?: string[] })?.addons)
@@ -76,6 +79,7 @@ export default async function SkuDetailPage({
         addons={applicable}
         savedIds={savedIds.filter((s) => applicableById.has(s))}
         canEdit={can.edit_price}
+        canManageAddons={can.bulk_edit}
         canViewCost={can.view_cost}
       />
     </div>

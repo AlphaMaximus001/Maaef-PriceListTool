@@ -180,12 +180,12 @@ export const HELP = {
   "config.page": {
     title: "Configurator",
     body:
-      "Price a customized product. Open a product, toggle its add-ons (like lamination or binding), watch the price recompute live, and save. Saving writes the new price to the working list (with the same below-cost guard and history logging as any edit).",
+      "Price a customized product. Open a product to create its own add-ons, toggle them, watch the price recompute live, and save. Add-ons are specific to each SKU — there's no global catalogue. Saving writes the new price to the working list (with the same below-cost guard and history logging as any edit).",
   },
   "config.addons": {
-    title: "Add-on catalogue",
+    title: "Add-ons for this SKU",
     body:
-      "Reusable customization options, each with a fixed price delta (e.g. Lamination +₹120). An add-on can apply to one category or to all products. These are flat amounts — the tool never derives them from cost.",
+      "Customization options that belong to THIS product, each a fixed price delta (e.g. Lamination +₹120). Create them right here with a name and amount; toggle one on to add its delta to the price. They're flat amounts — never derived from cost — and they follow the product when you save a new version. Managing them needs the bulk-edit permission.",
   },
   "config.price": {
     title: "Configured price",

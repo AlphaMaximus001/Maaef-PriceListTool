@@ -44,6 +44,27 @@ export async function saveConfiguration(
   return result;
 }
 
+// ── Per-SKU add-ons (bulk_edit) ──────────────────────────────────────────────
+
+/** Create an add-on that belongs to ONE product, from its configurator page. */
+export async function createSkuAddon(
+  productId: string,
+  name: string,
+  priceDelta: number,
+): Promise<{ ok: boolean; message: string }> {
+  await requireCapability("bulk_edit");
+  if (!name.trim()) return { ok: false, message: "Give the add-on a name." };
+  if (!Number.isFinite(priceDelta)) return { ok: false, message: "Price delta must be a number." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("spec_addons")
+    .insert({ name: name.trim(), price_delta: priceDelta, product_id: productId, applies_to: null });
+  if (error) return { ok: false, message: error.message };
+  revalidatePath(`/configurator/${productId}`);
+  return { ok: true, message: `Added "${name.trim()}".` };
+}
+
 // ── Add-on catalogue management (bulk_edit) ──────────────────────────────────
 
 export async function createAddon(formData: FormData): Promise<{ ok: boolean; message: string }> {

@@ -3,11 +3,13 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Save } from "lucide-react";
-import { saveConfiguration } from "../actions";
+import { AlertTriangle, Save, Plus, Trash2 } from "lucide-react";
+import { saveConfiguration, createSkuAddon, deleteAddon } from "../actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { InfoTip } from "@/components/info-tip";
 import {
@@ -25,6 +27,7 @@ export type ConfigAddon = {
   name: string;
   price_delta: number;
   currency: string;
+  productScoped?: boolean; // true = belongs to THIS SKU (can be deleted here)
 };
 
 export function ConfiguratorClient({
@@ -35,6 +38,7 @@ export function ConfiguratorClient({
   addons,
   savedIds,
   canEdit,
+  canManageAddons,
   canViewCost,
 }: {
   productId: string;
@@ -44,12 +48,45 @@ export function ConfiguratorClient({
   addons: ConfigAddon[];
   savedIds: string[];
   canEdit: boolean;
+  canManageAddons: boolean;
   canViewCost: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = React.useState<Set<string>>(new Set(savedIds));
   const [pending, start] = React.useTransition();
   const [confirmFloor, setConfirmFloor] = React.useState<{ floor: number; price: number } | null>(null);
+
+  // New per-SKU add-on form.
+  const [newName, setNewName] = React.useState("");
+  const [newDelta, setNewDelta] = React.useState("");
+
+  const addAddon = () => {
+    const delta = Number(newDelta);
+    start(async () => {
+      const r = await createSkuAddon(productId, newName, delta);
+      r.ok ? toast.success(r.message) : toast.error(r.message);
+      if (r.ok) {
+        setNewName("");
+        setNewDelta("");
+        router.refresh();
+      }
+    });
+  };
+
+  const removeAddon = (id: string) => {
+    start(async () => {
+      const r = await deleteAddon(id);
+      r.ok ? toast.success(r.message) : toast.error(r.message);
+      if (r.ok) {
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        router.refresh();
+      }
+    });
+  };
 
   const total = React.useMemo(() => {
     let t = basePrice;
@@ -122,13 +159,17 @@ export function ConfiguratorClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>Spec add-ons</CardTitle>
-          <CardDescription>Fixed deltas. Toggle to see the price recompute.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            Add-ons for this SKU <InfoTip k="config.addons" />
+          </CardTitle>
+          <CardDescription>
+            Add-ons specific to this product. Toggle to see the price recompute.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {addons.length === 0 && (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              No add-ons apply to this category.
+              No add-ons for this SKU yet.{canManageAddons ? " Create one below." : ""}
             </p>
           )}
           {addons.map((a) => (
@@ -138,15 +179,65 @@ export function ConfiguratorClient({
                 <div className="text-xs text-muted-foreground">
                   {a.price_delta >= 0 ? "+" : ""}
                   {formatPrice(a.price_delta, a.currency)}
+                  {a.productScoped === false && <span className="ml-2 italic">(shared)</span>}
                 </div>
               </div>
-              <Switch
-                checked={selected.has(a.id)}
-                disabled={!canEdit || pending}
-                onCheckedChange={() => toggle(a.id)}
-              />
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={selected.has(a.id)}
+                  disabled={!canEdit || pending}
+                  onCheckedChange={() => toggle(a.id)}
+                />
+                {canManageAddons && a.productScoped && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    disabled={pending}
+                    onClick={() => removeAddon(a.id)}
+                    aria-label={`Delete ${a.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
+
+          {/* Inline creation — add-ons specific to this SKU. */}
+          {canManageAddons && (
+            <div className="mt-3 flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
+              <div className="min-w-0 flex-1 space-y-1">
+                <Label htmlFor="addon-name" className="text-xs">Add-on name</Label>
+                <Input
+                  id="addon-name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. Lamination"
+                  className="h-9"
+                />
+              </div>
+              <div className="w-32 space-y-1">
+                <Label htmlFor="addon-delta" className="text-xs">Price (±{currency})</Label>
+                <Input
+                  id="addon-delta"
+                  type="number"
+                  step="0.01"
+                  value={newDelta}
+                  onChange={(e) => setNewDelta(e.target.value)}
+                  placeholder="120"
+                  className="h-9"
+                />
+              </div>
+              <Button
+                className="h-9"
+                disabled={pending || !newName.trim() || newDelta === ""}
+                onClick={addAddon}
+              >
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
