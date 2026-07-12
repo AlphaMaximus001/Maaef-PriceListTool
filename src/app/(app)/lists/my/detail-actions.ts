@@ -213,13 +213,21 @@ export async function addFlag(productId: string, reason: string): Promise<{ ok: 
   return { ok: true, message: "Flagged." };
 }
 
-export async function resolveFlag(flagId: string): Promise<{ ok: boolean; message: string }> {
+export async function resolveFlag(
+  flagId: string,
+  resolution?: string,
+): Promise<{ ok: boolean; message: string }> {
   const session = await requireSession();
   const supabase = await createClient();
   // RLS also enforces creator-or-admin; this is the friendly early check.
   const { error } = await supabase
     .from("flags")
-    .update({ resolved: true, resolved_by: session.profile.id, resolved_at: new Date().toISOString() })
+    .update({
+      resolved: true,
+      resolved_by: session.profile.id,
+      resolved_at: new Date().toISOString(),
+      resolution: resolution?.trim() || null,
+    })
     .eq("id", flagId);
   if (error) return { ok: false, message: "Only the person who flagged it (or an admin) can resolve it." };
   revalidatePath("/lists/my");

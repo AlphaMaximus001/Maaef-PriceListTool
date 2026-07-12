@@ -14,6 +14,7 @@ type FlagJoin = {
   created_at: string;
   resolved: boolean;
   resolved_at: string | null;
+  resolution: string | null;
   created_by: string;
   my_products: { sku: string; product_name: string; display_name: string | null } | null;
   creator: { email: string; full_name: string | null } | null;
@@ -48,7 +49,7 @@ export default async function FlagsPage() {
     supabase
       .from("flags")
       .select(
-        "id, reason, created_at, resolved, resolved_at, created_by, " +
+        "id, reason, created_at, resolved, resolved_at, resolution, created_by, " +
           "my_products(sku, product_name, display_name), " +
           "creator:profiles!flags_created_by_fkey(email, full_name), " +
           "resolver:profiles!flags_resolved_by_fkey(email, full_name)",
@@ -90,6 +91,7 @@ export default async function FlagsPage() {
       at: f.created_at,
       resolvedBy: who(f.resolver),
       resolvedAt: f.resolved_at,
+      resolution: f.resolution,
     }));
 
   return (

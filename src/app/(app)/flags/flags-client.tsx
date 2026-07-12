@@ -9,6 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { InfoTip } from "@/components/info-tip";
 import { addFlag, resolveFlag } from "@/app/(app)/lists/my/detail-actions";
 
@@ -33,6 +41,7 @@ export type ResolvedFlag = {
   at: string;
   resolvedBy: string;
   resolvedAt: string | null;
+  resolution: string | null;
 };
 
 /** Raise a flag, see what's open, and browse resolved flags — all in one page. */
@@ -53,6 +62,10 @@ export function FlagsClient({
   const [query, setQuery] = React.useState("");
   const [pickedId, setPickedId] = React.useState<string | null>(null);
   const [reason, setReason] = React.useState("");
+
+  // Resolve dialog: which flag, and the admin's typed answer.
+  const [resolving, setResolving] = React.useState<OpenFlag | null>(null);
+  const [answer, setAnswer] = React.useState("");
 
   const picked = products.find((p) => p.id === pickedId) ?? null;
 
@@ -83,11 +96,16 @@ export function FlagsClient({
     });
   };
 
-  const resolve = (id: string) => {
+  const submitResolve = () => {
+    if (!resolving) return;
     start(async () => {
-      const r = await resolveFlag(id);
+      const r = await resolveFlag(resolving.id, answer);
       r.ok ? toast.success(r.message) : toast.error(r.message);
-      if (r.ok) router.refresh();
+      if (r.ok) {
+        setResolving(null);
+        setAnswer("");
+        router.refresh();
+      }
     });
   };
 
@@ -184,7 +202,12 @@ export function FlagsClient({
                     </p>
                   </div>
                   {f.canResolve && (
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => resolve(f.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => { setResolving(f); setAnswer(""); }}
+                    >
                       <Check className="h-4 w-4" /> Resolve
                     </Button>
                   )}
@@ -210,6 +233,12 @@ export function FlagsClient({
                     {f.sku && <Badge variant="muted" className="font-mono text-xs">{f.sku}</Badge>}
                   </div>
                   <p className="mt-1 text-sm text-foreground/80">{f.reason}</p>
+                  {f.resolution && (
+                    <div className="mt-2 rounded-md border-l-2 border-green-600 bg-green-50 px-3 py-2 text-sm">
+                      <span className="font-medium text-green-800">Answer:</span>{" "}
+                      <span className="text-foreground/80">{f.resolution}</span>
+                    </div>
+                  )}
                   <p className="mt-1 text-xs text-muted-foreground">
                     Flagged by {f.by} · {new Date(f.at).toLocaleDateString()} → Resolved by {f.resolvedBy}
                     {f.resolvedAt ? ` · ${new Date(f.resolvedAt).toLocaleDateString()}` : ""}
@@ -220,6 +249,41 @@ export function FlagsClient({
           </div>
         )}
       </div>
+
+      {/* Resolve dialog — the admin types the answer, saved to history forever. */}
+      <Dialog open={!!resolving} onOpenChange={(o) => { if (!o) { setResolving(null); setAnswer(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resolve this flag</DialogTitle>
+            <DialogDescription>
+              {resolving && (
+                <>Write the answer for &ldquo;{resolving.reason}&rdquo;. It&apos;s saved and shown in the flag
+                history permanently.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-1">
+            <Label htmlFor="flag-answer" className="text-sm">Answer / resolution</Label>
+            <textarea
+              id="flag-answer"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="e.g. Verified against competitor sheet — price is correct, no change needed."
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setResolving(null); setAnswer(""); }} disabled={pending}>
+              Cancel
+            </Button>
+            <Button onClick={submitResolve} disabled={pending || !answer.trim()}>
+              <Check className="h-4 w-4" /> Resolve flag
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
