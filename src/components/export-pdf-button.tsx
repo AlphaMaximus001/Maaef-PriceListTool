@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { FileDown } from "lucide-react";
+import { FileDown, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -15,15 +15,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+type Mode = "download" | "preview";
+
 /**
- * Downloads a branded PDF from the export route. Shows a spinner while
- * Playwright renders, and surfaces the server's reason on failure. When
- * `canIntel` is set (view_margin), first asks whether to include MUSP/MP.
+ * Preview or download a branded PDF from the export route. Preview opens the
+ * PDF in a new browser tab (where the built-in viewer has its own download
+ * button); Download saves the file directly. When `canIntel` is set
+ * (view_margin), first asks whether to include the MUSP/MP columns.
  */
 export function ExportPdfButton({
   href,
   filename,
-  label = "Download PDF",
+  label = "PDF",
   canIntel = false,
 }: {
   href: string;
@@ -35,13 +38,17 @@ export function ExportPdfButton({
   const [dialog, setDialog] = React.useState(false);
   const [includeIntel, setIncludeIntel] = React.useState(false);
 
-  const run = async (withIntel: boolean) => {
+  const run = async (withIntel: boolean, mode: Mode) => {
     setDialog(false);
     setLoading(true);
+    // For preview, open the tab NOW (inside the click gesture) so pop-up
+    // blockers don't kill it; we point it at the PDF once the fetch resolves.
+    const previewWin = mode === "preview" ? window.open("", "_blank") : null;
     try {
       const url = withIntel ? `${href}${href.includes("?") ? "&" : "?"}intel=1` : href;
       const res = await fetch(url);
       if (!res.ok) {
+        previewWin?.close();
         if (res.status === 403) {
           toast.error("You don't have permission to export PDFs.");
           return;
@@ -55,36 +62,41 @@ export function ExportPdfButton({
       }
       const blob = await res.blob();
       const objUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(objUrl);
+      if (mode === "preview") {
+        if (previewWin) previewWin.location.href = objUrl;
+        else window.open(objUrl, "_blank"); // fallback if the tab was blocked
+        // Keep the object alive long enough for the new tab to load it.
+        setTimeout(() => URL.revokeObjectURL(objUrl), 60_000);
+      } else {
+        const a = document.createElement("a");
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(objUrl);
+      }
     } catch {
+      previewWin?.close();
       toast.error("Couldn't reach the export service.");
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <>
-      <Button
-        variant="outline"
-        disabled={loading}
-        onClick={() => (canIntel ? setDialog(true) : run(false))}
-      >
-        <FileDown className="h-4 w-4" /> {loading ? "Preparing…" : label}
-      </Button>
-
-      {canIntel && (
+  // Admins choosing intel go through the dialog; everyone else gets the two
+  // buttons directly.
+  if (canIntel) {
+    return (
+      <>
+        <Button variant="outline" disabled={loading} onClick={() => setDialog(true)}>
+          <FileDown className="h-4 w-4" /> {loading ? "Preparing…" : label}
+        </Button>
         <Dialog open={dialog} onOpenChange={setDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Export options</DialogTitle>
-              <DialogDescription>Choose what to include in the PDF.</DialogDescription>
+              <DialogDescription>Choose what to include, then preview or download.</DialogDescription>
             </DialogHeader>
             <div className="flex items-center justify-between rounded-md border p-3">
               <Label htmlFor="intel" className="flex flex-col">
@@ -96,12 +108,27 @@ export function ExportPdfButton({
               <Switch id="intel" checked={includeIntel} onCheckedChange={setIncludeIntel} />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
-              <Button onClick={() => run(includeIntel)}>Download</Button>
+              <Button variant="outline" onClick={() => run(includeIntel, "preview")}>
+                <Eye className="h-4 w-4" /> Preview
+              </Button>
+              <Button onClick={() => run(includeIntel, "download")}>
+                <FileDown className="h-4 w-4" /> Download
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      )}
-    </>
+      </>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Button variant="outline" disabled={loading} onClick={() => run(false, "preview")}>
+        <Eye className="h-4 w-4" /> Preview
+      </Button>
+      <Button variant="outline" disabled={loading} onClick={() => run(false, "download")}>
+        <FileDown className="h-4 w-4" /> {loading ? "Preparing…" : "Download"}
+      </Button>
+    </div>
   );
 }

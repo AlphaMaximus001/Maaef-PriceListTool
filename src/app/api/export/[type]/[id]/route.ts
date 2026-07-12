@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentList, getAllListProducts, PAGE_SIZE } from "@/lib/lists";
-import { buildListHtml, type PdfItem, type PdfFooter } from "@/lib/pdf/template";
+import { buildListHtml, buildFooterTemplate, type PdfItem, type PdfFooter } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
 
 // Force Node runtime (Playwright needs it) and never cache a generated PDF.
@@ -132,14 +132,17 @@ export async function GET(
     signatureDataUri,
   };
 
-  const html = buildListHtml({ title, subtitle, items, generatedAt: new Date(), showIntel, footer });
+  const html = buildListHtml({ title, subtitle, items, generatedAt: new Date(), showIntel });
+  const footerTemplate = buildFooterTemplate(footer);
 
   try {
-    const pdf = await renderPdf(html);
+    const pdf = await renderPdf(html, { footerTemplate });
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="maaef-${slug(title)}.pdf"`,
+        // `inline` so opening the URL previews in the browser's PDF viewer;
+        // the Download button still forces a save with the right filename.
+        "Content-Disposition": `inline; filename="maaef-${slug(title)}.pdf"`,
         "Cache-Control": "no-store",
       },
     });

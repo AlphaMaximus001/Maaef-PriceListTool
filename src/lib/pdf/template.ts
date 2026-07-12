@@ -29,11 +29,32 @@ export type PdfListData = {
   items: PdfItem[];
   generatedAt: Date;
   showIntel?: boolean; // include MUSP/MP columns (admin choice)
-  footer?: PdfFooter; // repeated on every page
 };
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * The employee footer, as Chromium `footerTemplate` HTML. Chromium renders this
+ * inside every page's bottom margin (a real per-page footer), so it always sits
+ * at the bottom. Styles must be inline and a font-size must be set explicitly
+ * (Chromium resets it to 0 otherwise). Table layout for robustness.
+ */
+export function buildFooterTemplate(f: PdfFooter): string {
+  const phone = f.phone ? `<div>${escapeHtml(f.phone)}</div>` : "";
+  const sig = f.signatureDataUri
+    ? `<img src="${f.signatureDataUri}" style="max-height:10mm;max-width:32mm;object-fit:contain;" />`
+    : "";
+  return `<div style="width:100%;box-sizing:border-box;padding:2mm 10mm 0;font-size:7pt;font-family:Arial,Helvetica,sans-serif;color:#666;">
+  <table style="width:100%;border-top:0.75pt solid #e7d4d8;border-collapse:collapse;">
+    <tr>
+      <td style="text-align:left;padding-top:3pt;width:30%;vertical-align:middle;">Maaef — confidential pricing</td>
+      <td style="text-align:center;padding-top:3pt;width:40%;vertical-align:middle;line-height:1.35;"><div>${escapeHtml(f.name)} · ${escapeHtml(f.email)}</div>${phone}</td>
+      <td style="text-align:right;padding-top:3pt;width:30%;vertical-align:middle;">${sig}</td>
+    </tr>
+  </table>
+</div>`;
 }
 
 export function buildListHtml(data: PdfListData): string {
@@ -68,27 +89,14 @@ export function buildListHtml(data: PdfListData): string {
 
   const dateStr = data.generatedAt.toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
 
-  const f = data.footer;
-  const footerHtml = f
-    ? `<footer>
-        <div class="f-left">Maaef — confidential pricing</div>
-        <div class="f-mid">
-          <div>${escapeHtml(f.name)} · ${escapeHtml(f.email)}</div>
-          ${f.phone ? `<div>${escapeHtml(f.phone)}</div>` : ""}
-        </div>
-        <div class="f-right">
-          ${f.signatureDataUri ? `<img class="sig" src="${f.signatureDataUri}" alt="signature" />` : ""}
-        </div>
-      </footer>`
-    : "";
-
+  // NOTE: page size + margins + the per-page employee footer are set by the
+  // renderer (page.pdf), not here — that's what keeps the footer pinned to the
+  // bottom of every page instead of floating into the content.
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <style>
-  /* Bottom margin reserves space for the fixed (per-page) footer. */
-  @page { size: A5; margin: 12mm 10mm ${f ? "24mm" : "12mm"} 10mm; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
@@ -113,19 +121,9 @@ export function buildListHtml(data: PdfListData): string {
   tbody td { padding: 3.2pt 4pt; border-bottom: 0.5pt solid #f0e6e8; vertical-align: top; }
   td.sku { color: #777; font-size: 8pt; }
   tr.cat-row td { background: #F4E1E4; color: #2B1B2E; font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.4pt; padding: 4pt; border: none; }
-  /* Fixed footer repeats on every printed page (Chromium print behavior). */
-  footer {
-    position: fixed; left: 0; right: 0; bottom: -18mm;
-    display: flex; align-items: center; justify-content: space-between;
-    border-top: 0.75pt solid #e7d4d8; padding-top: 4pt;
-    font-size: 7pt; color: #666;
-  }
-  footer .f-mid { text-align: center; line-height: 1.3; }
-  footer .sig { max-height: 16mm; max-width: 40mm; object-fit: contain; }
 </style>
 </head>
 <body>
-  ${footerHtml}
   <header>
     <div class="brand">
       <div class="logo">M</div>
