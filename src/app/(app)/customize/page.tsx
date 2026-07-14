@@ -48,7 +48,7 @@ export default async function CustomizePage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-          Customize SKUs <InfoTip k="customize.page" side="right" />
+          SKU Inventory <InfoTip k="customize.page" side="right" />
         </h1>
         <p className="mt-1 text-muted-foreground">
           Add new items and give SKUs a friendly display name. Everything saves to your current working

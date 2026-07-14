@@ -4,7 +4,8 @@ import { getCurrentList } from "@/lib/lists";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InfoTip } from "@/components/info-tip";
-import { OverlapGrid, type OverlapRow } from "./overlap-grid";
+import { type OverlapRow } from "./overlap-grid";
+import { OverlapClient } from "./overlap-client";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ type VOverlap = {
 };
 
 export default async function OverlapPage() {
-  await requireSession();
+  const { can } = await requireSession();
   const supabase = await createClient();
   const currentList = await getCurrentList();
 
@@ -97,7 +98,13 @@ export default async function OverlapPage() {
           </CardContent>
         </Card>
       ) : (
-        <OverlapGrid rows={rows} competitorNames={competitorNames} />
+        <OverlapClient
+          rows={rows}
+          competitorNames={competitorNames}
+          canEdit={can.edit_price}
+          locked={!!currentList && (currentList.locked || currentList.is_original)}
+          currency={rows[0]?.currency ?? "INR"}
+        />
       )}
     </div>
   );

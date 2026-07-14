@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Check, X, Wand2, ArrowRight } from "lucide-react";
+import { Check, X, Wand2, ArrowRight, Search } from "lucide-react";
 import { runMatcher, confirmMatch, rejectMatch } from "./actions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTip } from "@/components/info-tip";
@@ -103,6 +104,25 @@ export function MatchReviewClient({
   canConfirm: boolean;
 }) {
   const [running, start] = React.useTransition();
+  const [query, setQuery] = React.useState("");
+
+  const match = React.useCallback(
+    (r: MatchRow) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        r.mySku.toLowerCase().includes(q) ||
+        r.myName.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q) ||
+        r.competitorName.toLowerCase().includes(q) ||
+        r.competitorProduct.toLowerCase().includes(q)
+      );
+    },
+    [query],
+  );
+
+  const pendingShown = pending.filter(match);
+  const confirmedShown = confirmed.filter(match);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -133,21 +153,35 @@ export function MatchReviewClient({
         )}
       </div>
 
+      {(pending.length > 0 || confirmed.length > 0) && (
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search SKU, product, category, or competitor…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Proposed <Badge variant="muted">{pending.length}</Badge>
+            Proposed <Badge variant="muted">{pendingShown.length}</Badge>
             <InfoTip k="matches.proposed" />
           </CardTitle>
           <CardDescription>Confirm a match to move the product onto the undercut radar.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {pending.length === 0 ? (
+          {pendingShown.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              No pending proposals.{canConfirm ? " Run the matcher to find some." : ""}
+              {query.trim()
+                ? "No proposals match your search."
+                : `No pending proposals.${canConfirm ? " Run the matcher to find some." : ""}`}
             </p>
           ) : (
-            pending.map((row) => (
+            pendingShown.map((row) => (
               <MatchCard key={row.id} row={row} canConfirm={canConfirm} mode="pending" />
             ))
           )}
@@ -158,15 +192,21 @@ export function MatchReviewClient({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              Confirmed <Badge variant="success">{confirmed.length}</Badge>
+              Confirmed <Badge variant="success">{confirmedShown.length}</Badge>
               <InfoTip k="matches.confirmed" />
             </CardTitle>
             <CardDescription>These power the overlap view. Retract to undo.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {confirmed.map((row) => (
-              <MatchCard key={row.id} row={row} canConfirm={canConfirm} mode="confirmed" />
-            ))}
+            {confirmedShown.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No confirmed matches match your search.
+              </p>
+            ) : (
+              confirmedShown.map((row) => (
+                <MatchCard key={row.id} row={row} canConfirm={canConfirm} mode="confirmed" />
+              ))
+            )}
           </CardContent>
         </Card>
       )}

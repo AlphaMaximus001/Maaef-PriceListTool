@@ -36,7 +36,7 @@ export default async function AppLayout({
     { href: "/flags", label: "Flags", icon: "flags" },
     { href: "/history", label: "Edit History", icon: "history" },
     ...(can.edit_specs
-      ? [{ href: "/customize", label: "Customize SKUs", icon: "customize" as const }]
+      ? [{ href: "/customize", label: "SKU Inventory", icon: "customize" as const }]
       : []),
     { href: "/documents", label: "Documents", icon: "documents" },
     ...(can.manage_users

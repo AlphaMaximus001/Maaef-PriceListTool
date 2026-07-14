@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { Search } from "lucide-react";
 import { DataGrid, type ColDef } from "@/components/data-grid";
+import { Input } from "@/components/ui/input";
 import { formatPrice } from "@/lib/utils";
 
 export type CompetitorRow = {
@@ -13,6 +15,8 @@ export type CompetitorRow = {
 };
 
 export function CompetitorGrid({ rows }: { rows: CompetitorRow[] }) {
+  const [query, setQuery] = React.useState("");
+
   const columnDefs = React.useMemo<ColDef<CompetitorRow>[]>(
     () => [
       { field: "sku", headerName: "SKU", flex: 0, width: 150 },
@@ -29,11 +33,23 @@ export function CompetitorGrid({ rows }: { rows: CompetitorRow[] }) {
   );
 
   return (
-    <DataGrid<CompetitorRow>
-      rowData={rows}
-      columnDefs={columnDefs}
-      groupDefaultExpanded={1}
-      autoGroupColumnDef={{ headerName: "Category", minWidth: 220 }}
-    />
+    <div className="space-y-3">
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Search SKU, product, or category…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <DataGrid<CompetitorRow>
+        rowData={rows}
+        columnDefs={columnDefs}
+        quickFilterText={query}
+        groupDefaultExpanded={1}
+        autoGroupColumnDef={{ headerName: "Category", minWidth: 220 }}
+      />
+    </div>
   );
 }

@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { requireSession } from "@/lib/capabilities";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentListId } from "@/lib/lists";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, PencilRuler } from "lucide-react";
+import { PencilRuler } from "lucide-react";
 import { InfoTip } from "@/components/info-tip";
-import { formatPrice } from "@/lib/utils";
+import { ConfiguratorList, type ConfigProduct } from "./configurator-list";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +20,15 @@ export default async function ConfiguratorPage() {
     .eq("list_id", listId ?? "00000000-0000-0000-0000-000000000000")
     .order("category")
     .order("product_name");
+
+  const list: ConfigProduct[] = (products ?? []).map((p) => ({
+    id: p.id,
+    sku: p.sku,
+    product_name: p.product_name,
+    category: p.category ?? null,
+    price: Number(p.price),
+    currency: p.currency,
+  }));
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -38,32 +46,10 @@ export default async function ConfiguratorPage() {
       <Card>
         <CardHeader>
           <CardTitle>Products</CardTitle>
-          <CardDescription>{products?.length ?? 0} active products.</CardDescription>
+          <CardDescription>{list.length} active products. Search a SKU or category to jump.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {(products ?? []).map((p) => (
-            <Link
-              key={p.id}
-              href={`/configurator/${p.id}`}
-              className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted"
-            >
-              <div>
-                <div className="font-medium">{p.product_name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {p.sku} · {p.category ?? "—"}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-medium">{formatPrice(Number(p.price), p.currency)}</span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </Link>
-          ))}
-          {(products ?? []).length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No products yet — import your list first.
-            </p>
-          )}
+        <CardContent>
+          <ConfiguratorList products={list} />
         </CardContent>
       </Card>
     </div>

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { DataGrid, type ColDef } from "@/components/data-grid";
 import { formatPrice } from "@/lib/utils";
+import type { CellValueChangedEvent } from "ag-grid-community";
 
 export type OverlapRow = {
   my_product_id: string;
@@ -21,9 +22,15 @@ export type OverlapRow = {
 export function OverlapGrid({
   rows,
   competitorNames,
+  editable = false,
+  quickFilterText,
+  onPriceEdit,
 }: {
   rows: OverlapRow[];
   competitorNames: string[];
+  editable?: boolean;
+  quickFilterText?: string;
+  onPriceEdit?: (id: string, newPrice: number, revert: () => void) => void;
 }) {
   const columnDefs = React.useMemo<ColDef<OverlapRow>[]>(() => {
     const cols: ColDef<OverlapRow>[] = [
@@ -32,9 +39,11 @@ export function OverlapGrid({
       { field: "category", headerName: "Category", minWidth: 130 },
       {
         field: "my_price",
-        headerName: "My price",
+        headerName: editable ? "My price ✎" : "My price",
+        headerTooltip: editable ? "Double-click to change this price" : undefined,
         type: "rightAligned",
-        cellStyle: { fontWeight: 600 },
+        editable,
+        cellStyle: editable ? { fontWeight: 600, cursor: "text" } : { fontWeight: 600 },
         valueFormatter: (p) => formatPrice(p.value, p.data?.currency),
       },
     ];
@@ -92,7 +101,26 @@ export function OverlapGrid({
       },
     );
     return cols;
-  }, [competitorNames]);
+  }, [competitorNames, editable]);
 
-  return <DataGrid<OverlapRow> rowData={rows} columnDefs={columnDefs} enableBrowserTooltips />;
+  const handleCellChanged = (e: CellValueChangedEvent<OverlapRow>) => {
+    if (e.colDef.field !== "my_price" || !onPriceEdit || !e.data) return;
+    const newPrice = Number(e.newValue);
+    const oldPrice = Number(e.oldValue);
+    if (!Number.isFinite(newPrice) || newPrice === oldPrice) {
+      e.node.setDataValue("my_price", oldPrice);
+      return;
+    }
+    onPriceEdit(e.data.my_product_id, newPrice, () => e.node.setDataValue("my_price", oldPrice));
+  };
+
+  return (
+    <DataGrid<OverlapRow>
+      rowData={rows}
+      columnDefs={columnDefs}
+      enableBrowserTooltips
+      quickFilterText={quickFilterText}
+      onCellValueChanged={handleCellChanged}
+    />
+  );
 }
