@@ -13,7 +13,7 @@ function mapError(msg: string): string {
 }
 
 export type EditScope = "single" | "category" | "list" | "selection";
-export type EditOperation = "percentage" | "flat" | "set";
+export type EditOperation = "percentage" | "flat" | "set" | "undercut_lowest";
 
 export type EditInput = {
   scope: EditScope;
@@ -57,7 +57,7 @@ export type EditResult = {
 
 function validate(input: EditInput): string | null {
   if (!["single", "category", "list", "selection"].includes(input.scope)) return "Invalid scope.";
-  if (!["percentage", "flat", "set"].includes(input.operation)) return "Invalid operation.";
+  if (!["percentage", "flat", "set", "undercut_lowest"].includes(input.operation)) return "Invalid operation.";
   if (!Number.isFinite(input.value)) return "Enter a numeric value.";
   if (input.operation === "set" && input.value < 0) return "Set value can't be negative.";
   if (input.scope === "single" && !input.targetId) return "No product selected.";

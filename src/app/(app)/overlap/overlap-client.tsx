@@ -34,6 +34,7 @@ function defaultListName(): string {
 }
 
 const OPERATIONS: { value: EditOperation; label: string }[] = [
+  { value: "undercut_lowest", label: "Undercut cheapest competitor" },
   { value: "percentage", label: "Change by %" },
   { value: "flat", label: "Change by ₹" },
   { value: "set", label: "Set all to ₹" },
@@ -62,8 +63,8 @@ export function OverlapClient({
 
   // Multi-select bulk edit.
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
-  const [bulkOp, setBulkOp] = React.useState<EditOperation>("percentage");
-  const [bulkValue, setBulkValue] = React.useState("");
+  const [bulkOp, setBulkOp] = React.useState<EditOperation>("undercut_lowest");
+  const [bulkValue, setBulkValue] = React.useState("1");
   const [bulkListName, setBulkListName] = React.useState("");
   const [bulkOpen, setBulkOpen] = React.useState(false);
 
@@ -208,14 +209,23 @@ export function OverlapClient({
             <DialogTitle>Change {selectedIds.length} price{selectedIds.length > 1 ? "s" : ""}</DialogTitle>
             <DialogDescription>
               Applies to every selected SKU and saves into a new list — the list you&apos;re viewing stays
-              untouched. Prices below the cost floor are skipped.
+              untouched. &quot;Undercut cheapest&quot; sets each SKU to its own lowest competitor price minus
+              the amount (skipping any SKU with no competitor). Prices below the cost floor are skipped.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Operation</Label>
-                <Select value={bulkOp} onValueChange={(v) => setBulkOp(v as EditOperation)}>
+                <Select
+                  value={bulkOp}
+                  onValueChange={(v) => {
+                    const op = v as EditOperation;
+                    setBulkOp(op);
+                    // Undercut defaults to ₹1 below the cheapest competitor.
+                    if (op === "undercut_lowest" && bulkValue === "") setBulkValue("1");
+                  }}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {OPERATIONS.map((o) => (
@@ -226,7 +236,13 @@ export function OverlapClient({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="bulk-value">
-                  {bulkOp === "percentage" ? "Percent (e.g. -5)" : bulkOp === "flat" ? `Amount (${currency}, e.g. -50)` : `Price (${currency})`}
+                  {bulkOp === "percentage"
+                    ? "Percent (e.g. -5)"
+                    : bulkOp === "flat"
+                      ? `Amount (${currency}, e.g. -50)`
+                      : bulkOp === "undercut_lowest"
+                        ? `₹ below the cheapest`
+                        : `Price (${currency})`}
                 </Label>
                 <Input id="bulk-value" type="number" step="0.01" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} autoFocus />
               </div>
