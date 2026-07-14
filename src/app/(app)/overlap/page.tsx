@@ -102,7 +102,6 @@ export default async function OverlapPage() {
           rows={rows}
           competitorNames={competitorNames}
           canEdit={can.edit_price}
-          locked={!!currentList && (currentList.locked || currentList.is_original)}
           currency={rows[0]?.currency ?? "INR"}
         />
       )}

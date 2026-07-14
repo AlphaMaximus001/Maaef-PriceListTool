@@ -3,7 +3,6 @@
 import * as React from "react";
 import { DataGrid, type ColDef } from "@/components/data-grid";
 import { formatPrice } from "@/lib/utils";
-import type { CellValueChangedEvent } from "ag-grid-community";
 
 export type OverlapRow = {
   my_product_id: string;
@@ -22,15 +21,13 @@ export type OverlapRow = {
 export function OverlapGrid({
   rows,
   competitorNames,
-  editable = false,
   quickFilterText,
-  onPriceEdit,
+  onOpen,
 }: {
   rows: OverlapRow[];
   competitorNames: string[];
-  editable?: boolean;
   quickFilterText?: string;
-  onPriceEdit?: (id: string, newPrice: number, revert: () => void) => void;
+  onOpen?: (id: string) => void;
 }) {
   const columnDefs = React.useMemo<ColDef<OverlapRow>[]>(() => {
     const cols: ColDef<OverlapRow>[] = [
@@ -39,11 +36,9 @@ export function OverlapGrid({
       { field: "category", headerName: "Category", minWidth: 130 },
       {
         field: "my_price",
-        headerName: editable ? "My price ✎" : "My price",
-        headerTooltip: editable ? "Double-click to change this price" : undefined,
+        headerName: "My price",
         type: "rightAligned",
-        editable,
-        cellStyle: editable ? { fontWeight: 600, cursor: "text" } : { fontWeight: 600 },
+        cellStyle: { fontWeight: 600 },
         valueFormatter: (p) => formatPrice(p.value, p.data?.currency),
       },
     ];
@@ -100,19 +95,32 @@ export function OverlapGrid({
             : { color: "#b91c1c", fontWeight: 400 },
       },
     );
-    return cols;
-  }, [competitorNames, editable]);
 
-  const handleCellChanged = (e: CellValueChangedEvent<OverlapRow>) => {
-    if (e.colDef.field !== "my_price" || !onPriceEdit || !e.data) return;
-    const newPrice = Number(e.newValue);
-    const oldPrice = Number(e.oldValue);
-    if (!Number.isFinite(newPrice) || newPrice === oldPrice) {
-      e.node.setDataValue("my_price", oldPrice);
-      return;
+    // Expand-to-edit button (only when the user can edit).
+    if (onOpen) {
+      cols.push({
+        headerName: "",
+        pinned: "right",
+        width: 110,
+        sortable: false,
+        filter: false,
+        resizable: false,
+        cellStyle: { display: "flex", alignItems: "center", justifyContent: "center" },
+        cellRenderer: (p: { data?: OverlapRow }) =>
+          p.data ? (
+            <button
+              type="button"
+              onClick={() => onOpen(p.data!.my_product_id)}
+              className="rounded-md border border-maaef-red/40 px-2 py-1 text-xs font-medium text-maaef-red hover:bg-maaef-red/10"
+            >
+              Open ›
+            </button>
+          ) : null,
+      });
     }
-    onPriceEdit(e.data.my_product_id, newPrice, () => e.node.setDataValue("my_price", oldPrice));
-  };
+
+    return cols;
+  }, [competitorNames, onOpen]);
 
   return (
     <DataGrid<OverlapRow>
@@ -120,7 +128,7 @@ export function OverlapGrid({
       columnDefs={columnDefs}
       enableBrowserTooltips
       quickFilterText={quickFilterText}
-      onCellValueChanged={handleCellChanged}
+      onRowClicked={(e) => onOpen && e.data && onOpen(e.data.my_product_id)}
     />
   );
 }

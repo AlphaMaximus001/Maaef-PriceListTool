@@ -141,7 +141,7 @@ export const HELP = {
   "overlap.page": {
     title: "Undercut radar",
     body:
-      "Every Maaef product that has a confirmed competitor match, with your price beside each competitor's best price. 'Gap' is your price minus the cheapest competitor: red/positive means you're pricier (an undercut target), green means you're already cheapest. Sorted by biggest gap first so the top of the list is where action matters most. Follows the working list you've selected. With edit access you can double-click your price to change it right here — on a locked Original it saves into a new named version, and below-cost changes are guarded.",
+      "Every Maaef product that has a confirmed competitor match, with your price beside each competitor's best price. 'Gap' is your price minus the cheapest competitor: red/positive means you're pricier (an undercut target), green means you're already cheapest. Sorted by biggest gap first so the top of the list is where action matters most. Follows the working list you've selected. With edit access, click a row to expand it — you'll see every competitor's price and can set a new price, which always saves into a NEW list you name (the list you're viewing is never modified).",
   },
   "unique.page": {
     title: "Pricing power",

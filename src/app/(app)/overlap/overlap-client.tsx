@@ -3,9 +3,11 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Search, AlertTriangle } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -16,87 +18,84 @@ import {
 } from "@/components/ui/dialog";
 import { formatPrice } from "@/lib/utils";
 import { OverlapGrid, type OverlapRow } from "./overlap-grid";
-import { applyEdit, type EditInput } from "../lists/my/edit-actions";
 import { createVersionAndEdit } from "../lists/list-actions";
+import type { EditResult } from "../lists/my/edit-actions";
+
+function defaultListName(): string {
+  const d = new Date();
+  return `Undercut edit — ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+}
 
 export function OverlapClient({
   rows,
   competitorNames,
   canEdit,
-  locked,
   currency,
 }: {
   rows: OverlapRow[];
   competitorNames: string[];
   canEdit: boolean;
-  locked: boolean;
   currency: string;
 }) {
   const router = useRouter();
   const [pending, start] = React.useTransition();
   const [query, setQuery] = React.useState("");
 
-  // Pending edit + how to undo the cell if it's cancelled/rejected.
-  const [input, setInput] = React.useState<EditInput | null>(null);
-  const revertRef = React.useRef<(() => void) | null>(null);
+  const [openId, setOpenId] = React.useState<string | null>(null);
+  const [newPrice, setNewPrice] = React.useState("");
+  const [listName, setListName] = React.useState("");
 
-  // Locked-list version prompt.
-  const [askName, setAskName] = React.useState(false);
-  const [versionName, setVersionName] = React.useState("");
+  const row = rows.find((r) => r.my_product_id === openId) ?? null;
 
-  // Below-floor confirm (view_cost users).
-  const [confirmFloor, setConfirmFloor] = React.useState<{ price: number; floor: number | null } | null>(null);
+  const open = (id: string) => {
+    const r = rows.find((x) => x.my_product_id === id);
+    if (!r) return;
+    setOpenId(id);
+    setNewPrice(String(r.my_price));
+    setListName(defaultListName());
+  };
 
-  const onPriceEdit = (id: string, newPrice: number, revert: () => void) => {
-    const ei: EditInput = { scope: "single", operation: "set", value: newPrice, targetId: id };
-    revertRef.current = revert;
-    if (locked) {
-      revert(); // never mutate the locked cell; we'll apply on a new version
-      setInput(ei);
-      setAskName(true);
+  const close = () => {
+    setOpenId(null);
+    setNewPrice("");
+    setListName("");
+  };
+
+  const save = () => {
+    if (!row) return;
+    const value = Number(newPrice);
+    if (!Number.isFinite(value) || value < 0) {
+      toast.error("Enter a valid price.");
       return;
     }
-    setInput(ei);
+    if (value === row.my_price) {
+      toast.error("That's the same as the current price.");
+      return;
+    }
+    if (!listName.trim()) {
+      toast.error("Name the new list.");
+      return;
+    }
     start(async () => {
-      const r = await applyEdit(ei, false);
-      if (r.status === "applied") {
-        toast.success(`Price updated · ${formatPrice(newPrice, currency)}`);
-        router.refresh();
-      } else if (r.status === "needs_confirm") {
-        setConfirmFloor({ price: r.changes?.[0]?.new ?? newPrice, floor: r.breaches?.[0]?.floor ?? null });
+      const r = await createVersionAndEdit(listName.trim(), {
+        scope: "single",
+        operation: "set",
+        value,
+        targetId: row.my_product_id,
+      });
+      if (!r.ok) {
+        toast.error(r.message);
+        return;
+      }
+      // The new list is created and selected; warn if the price sat below the
+      // cost floor (then it wasn't applied — adjust it in My Products).
+      if ((r.result as EditResult | undefined)?.status === "needs_confirm") {
+        toast.warning(`Created "${listName.trim()}", but ${formatPrice(value, currency)} is at or below the cost floor — set it from My Products.`);
       } else {
-        toast.error(r.message ?? "Couldn't update the price.");
-        revert();
+        toast.success(`Saved to new list "${listName.trim()}".`);
       }
-    });
-  };
-
-  const confirmBelowFloor = () => {
-    if (!input) return;
-    start(async () => {
-      const r = await applyEdit(input, true);
-      if (r.status === "applied") {
-        toast.success("Price updated.");
-        setConfirmFloor(null);
-        router.refresh();
-      } else {
-        toast.error(r.message ?? "Couldn't update the price.");
-        revertRef.current?.();
-        setConfirmFloor(null);
-      }
-    });
-  };
-
-  const applyOnNewVersion = () => {
-    if (!input || !versionName.trim()) return;
-    start(async () => {
-      const r = await createVersionAndEdit(versionName.trim(), input);
-      r.ok ? toast.success(r.message) : toast.error(r.message);
-      if (r.ok) {
-        setAskName(false);
-        setVersionName("");
-        router.refresh();
-      }
+      close();
+      router.refresh();
     });
   };
 
@@ -115,66 +114,86 @@ export function OverlapClient({
       <OverlapGrid
         rows={rows}
         competitorNames={competitorNames}
-        editable={canEdit}
         quickFilterText={query}
-        onPriceEdit={onPriceEdit}
+        onOpen={canEdit ? open : undefined}
       />
 
       {canEdit && (
         <p className="text-xs text-muted-foreground">
-          Double-click a value in <span className="font-medium">My price ✎</span> to change it
-          {locked ? " — you'll be asked to name a working version, so the Original stays untouched." : "."}
+          Click a row (or <span className="font-medium">Open</span>) to change its price. Every change
+          saves into a new list you name — the list you&apos;re viewing is never modified.
         </p>
       )}
 
-      {/* Locked → name a working version */}
-      <Dialog open={askName} onOpenChange={(o) => { if (!o) { setAskName(false); revertRef.current?.(); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save the change in a new version</DialogTitle>
-            <DialogDescription>
-              This list is a locked Original. Name a working version — the new price saves there and the
-              Original is never touched.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            <Input
-              value={versionName}
-              onChange={(e) => setVersionName(e.target.value)}
-              autoFocus
-              placeholder="e.g. Undercut fixes — July"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => { setAskName(false); revertRef.current?.(); }}>Cancel</Button>
-            <Button disabled={pending || !versionName.trim()} onClick={applyOnNewVersion}>
-              Create &amp; save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* SKU detail — competitors + price editor */}
+      <Dialog open={!!row} onOpenChange={(o) => !o && close()}>
+        <DialogContent className="max-w-lg">
+          {row && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{row.my_product_name}</DialogTitle>
+                <DialogDescription>
+                  {row.my_sku} · {row.category}
+                </DialogDescription>
+              </DialogHeader>
 
-      {/* Below-floor confirm */}
-      <Dialog open={!!confirmFloor} onOpenChange={(o) => { if (!o) { setConfirmFloor(null); revertRef.current?.(); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-maaef-red">
-              <AlertTriangle className="h-5 w-5" /> Below the cost floor
-            </DialogTitle>
-            <DialogDescription>
-              {confirmFloor?.floor != null
-                ? `The new price ${formatPrice(confirmFloor.price, currency)} is at or below this product's floor of ${formatPrice(confirmFloor.floor, currency)}.`
-                : "This price falls at or below the allowed floor."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setConfirmFloor(null); revertRef.current?.(); }} disabled={pending}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmBelowFloor} disabled={pending}>
-              Save anyway
-            </Button>
-          </DialogFooter>
+              {/* Competitor comparison */}
+              <div className="space-y-1.5 rounded-md border p-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Your current price</span>
+                  <span className="font-semibold">{formatPrice(row.my_price, currency)}</span>
+                </div>
+                {competitorNames
+                  .filter((n) => row.competitors[n] != null)
+                  .map((n) => {
+                    const p = row.competitors[n];
+                    const cheaper = row.my_price <= p;
+                    return (
+                      <div key={n} className="flex items-center justify-between text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          {n}
+                          {n === row.lowest_competitor_name && <Badge variant="muted" className="text-[10px]">lowest</Badge>}
+                        </span>
+                        <span className={cheaper ? "text-green-700" : "text-red-700"}>{formatPrice(p, currency)}</span>
+                      </div>
+                    );
+                  })}
+                <div className="flex items-center justify-between border-t pt-1.5">
+                  <span>Gap vs. cheapest</span>
+                  <span className={row.gap > 0 ? "font-medium text-red-700" : "font-medium text-green-700"}>
+                    {row.gap === 0 ? "—" : `${row.gap > 0 ? "+" : ""}${formatPrice(row.gap, currency)}`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Price editor */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ov-price">New price ({currency})</Label>
+                  <Input
+                    id="ov-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ov-list">Save as a new list named</Label>
+                  <Input id="ov-list" value={listName} onChange={(e) => setListName(e.target.value)} />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="ghost" onClick={close} disabled={pending}>Cancel</Button>
+                <Button onClick={save} disabled={pending || !listName.trim()}>
+                  {pending ? "Saving…" : "Save to new list"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
