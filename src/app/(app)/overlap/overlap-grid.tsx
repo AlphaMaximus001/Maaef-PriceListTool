@@ -3,6 +3,7 @@
 import * as React from "react";
 import { DataGrid, type ColDef } from "@/components/data-grid";
 import { formatPrice } from "@/lib/utils";
+import type { SelectionChangedEvent } from "ag-grid-community";
 
 export type OverlapRow = {
   my_product_id: string;
@@ -22,16 +23,29 @@ export function OverlapGrid({
   rows,
   competitorNames,
   quickFilterText,
+  selectable = false,
   onOpen,
+  onSelectionChanged,
 }: {
   rows: OverlapRow[];
   competitorNames: string[];
   quickFilterText?: string;
+  selectable?: boolean;
   onOpen?: (id: string) => void;
+  onSelectionChanged?: (ids: string[]) => void;
 }) {
   const columnDefs = React.useMemo<ColDef<OverlapRow>[]>(() => {
     const cols: ColDef<OverlapRow>[] = [
-      { field: "my_sku", headerName: "SKU", flex: 0, width: 140, pinned: "left" },
+      {
+        field: "my_sku",
+        headerName: "SKU",
+        flex: 0,
+        width: selectable ? 170 : 140,
+        pinned: "left",
+        checkboxSelection: selectable,
+        headerCheckboxSelection: selectable,
+        headerCheckboxSelectionFilteredOnly: true,
+      },
       { field: "my_product_name", headerName: "Product", flex: 2, minWidth: 200, pinned: "left" },
       { field: "category", headerName: "Category", minWidth: 130 },
       {
@@ -120,7 +134,12 @@ export function OverlapGrid({
     }
 
     return cols;
-  }, [competitorNames, onOpen]);
+  }, [competitorNames, onOpen, selectable]);
+
+  const handleSelection = (e: SelectionChangedEvent<OverlapRow>) => {
+    if (!onSelectionChanged) return;
+    onSelectionChanged(e.api.getSelectedRows().map((r) => r.my_product_id));
+  };
 
   return (
     <DataGrid<OverlapRow>
@@ -128,7 +147,10 @@ export function OverlapGrid({
       columnDefs={columnDefs}
       enableBrowserTooltips
       quickFilterText={quickFilterText}
-      onRowClicked={(e) => onOpen && e.data && onOpen(e.data.my_product_id)}
+      getRowId={(p) => p.data.my_product_id}
+      rowSelection={selectable ? "multiple" : undefined}
+      suppressRowClickSelection
+      onSelectionChanged={handleSelection}
     />
   );
 }

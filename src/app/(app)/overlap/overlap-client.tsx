@@ -16,25 +16,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatPrice } from "@/lib/utils";
 import { OverlapGrid, type OverlapRow } from "./overlap-grid";
 import { createVersionAndEdit } from "../lists/list-actions";
-import type { EditResult } from "../lists/my/edit-actions";
+import type { EditResult, EditOperation } from "../lists/my/edit-actions";
 
 function defaultListName(): string {
   const d = new Date();
   return `Undercut edit — ${d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
 }
 
+const OPERATIONS: { value: EditOperation; label: string }[] = [
+  { value: "percentage", label: "Change by %" },
+  { value: "flat", label: "Change by ₹" },
+  { value: "set", label: "Set all to ₹" },
+];
+
 export function OverlapClient({
   rows,
   competitorNames,
   canEdit,
+  canBulk,
   currency,
 }: {
   rows: OverlapRow[];
   competitorNames: string[];
   canEdit: boolean;
+  canBulk: boolean;
   currency: string;
 }) {
   const router = useRouter();
@@ -45,7 +60,53 @@ export function OverlapClient({
   const [newPrice, setNewPrice] = React.useState("");
   const [listName, setListName] = React.useState("");
 
+  // Multi-select bulk edit.
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [bulkOp, setBulkOp] = React.useState<EditOperation>("percentage");
+  const [bulkValue, setBulkValue] = React.useState("");
+  const [bulkListName, setBulkListName] = React.useState("");
+  const [bulkOpen, setBulkOpen] = React.useState(false);
+
   const row = rows.find((r) => r.my_product_id === openId) ?? null;
+
+  const applyBulk = () => {
+    const value = Number(bulkValue);
+    if (!Number.isFinite(value)) {
+      toast.error("Enter a number.");
+      return;
+    }
+    if (bulkOp === "set" && value < 0) {
+      toast.error("Set value can't be negative.");
+      return;
+    }
+    if (!bulkListName.trim()) {
+      toast.error("Name the new list.");
+      return;
+    }
+    start(async () => {
+      const r = await createVersionAndEdit(bulkListName.trim(), {
+        scope: "selection",
+        operation: bulkOp,
+        value,
+        targetIds: selectedIds,
+      });
+      if (!r.ok) {
+        toast.error(r.message);
+        return;
+      }
+      const res = r.result as EditResult | undefined;
+      const applied = res?.applied ?? 0;
+      const blocked = res?.blocked ?? 0;
+      const parts = [`Saved to new list "${bulkListName.trim()}" · ${applied} price(s) changed`];
+      if (blocked) parts.push(`${blocked} blocked below the cost floor`);
+      toast.success(parts.join(" · "));
+      setBulkOpen(false);
+      setBulkValue("");
+      setBulkListName("");
+      setSelectedIds([]);
+      router.refresh();
+    });
+  };
 
   const open = (id: string) => {
     const r = rows.find((x) => x.my_product_id === id);
@@ -111,19 +172,78 @@ export function OverlapClient({
         />
       </div>
 
+      {/* Bulk bar — appears when rows are ticked. */}
+      {canBulk && selectedIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-maaef-red/40 bg-maaef-blush/40 p-3">
+          <span className="text-sm font-medium text-maaef-purple">
+            {selectedIds.length} SKU{selectedIds.length > 1 ? "s" : ""} selected
+          </span>
+          <Button size="sm" className="ml-auto" disabled={pending} onClick={() => { setBulkListName(defaultListName()); setBulkOpen(true); }}>
+            Change prices of selected
+          </Button>
+        </div>
+      )}
+
       <OverlapGrid
         rows={rows}
         competitorNames={competitorNames}
         quickFilterText={query}
+        selectable={canBulk}
+        onSelectionChanged={setSelectedIds}
         onOpen={canEdit ? open : undefined}
       />
 
       {canEdit && (
         <p className="text-xs text-muted-foreground">
-          Click a row (or <span className="font-medium">Open</span>) to change its price. Every change
-          saves into a new list you name — the list you&apos;re viewing is never modified.
+          {canBulk ? "Tick rows to change several prices at once, or c" : "C"}lick{" "}
+          <span className="font-medium">Open</span> on a row to edit one. Every change saves into a new
+          list you name — the list you&apos;re viewing is never modified.
         </p>
       )}
+
+      {/* Bulk edit dialog */}
+      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change {selectedIds.length} price{selectedIds.length > 1 ? "s" : ""}</DialogTitle>
+            <DialogDescription>
+              Applies to every selected SKU and saves into a new list — the list you&apos;re viewing stays
+              untouched. Prices below the cost floor are skipped.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Operation</Label>
+                <Select value={bulkOp} onValueChange={(v) => setBulkOp(v as EditOperation)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {OPERATIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bulk-value">
+                  {bulkOp === "percentage" ? "Percent (e.g. -5)" : bulkOp === "flat" ? `Amount (${currency}, e.g. -50)` : `Price (${currency})`}
+                </Label>
+                <Input id="bulk-value" type="number" step="0.01" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} autoFocus />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bulk-list">Save as a new list named</Label>
+              <Input id="bulk-list" value={bulkListName} onChange={(e) => setBulkListName(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBulkOpen(false)} disabled={pending}>Cancel</Button>
+            <Button onClick={applyBulk} disabled={pending || bulkValue === "" || !bulkListName.trim()}>
+              {pending ? "Saving…" : "Apply to selected"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* SKU detail — competitors + price editor */}
       <Dialog open={!!row} onOpenChange={(o) => !o && close()}>
