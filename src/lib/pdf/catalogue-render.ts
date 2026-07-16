@@ -4,9 +4,11 @@ import path from "node:path";
 import { PDFDocument } from "pdf-lib";
 import { renderSizedPdf } from "./render";
 
-// Reference page geometry (matches the fixed cover/back pages exactly).
-const PAGE_W = "419.25pt";
-const PAGE_H = "595.5pt";
+// Reference page geometry (419.25 x 595.5 pt) — Playwright's page.pdf only
+// accepts px/in/cm/mm, so express it in inches (pt / 72). This matches the
+// fixed cover/back pages exactly.
+const PAGE_W = "5.8229in"; // 419.25pt
+const PAGE_H = "8.2708in"; // 595.5pt
 
 async function loadAsset(name: string): Promise<Buffer> {
   return fs.readFile(path.join(process.cwd(), "public", "pdf", name));
