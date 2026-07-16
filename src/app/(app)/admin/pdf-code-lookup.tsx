@@ -33,7 +33,7 @@ export function PdfCodeLookup() {
           <FileSearch className="h-5 w-5 text-maaef-red" /> Catalogue PDF code <InfoTip k="admin.pdfCode" />
         </CardTitle>
         <CardDescription>
-          Every catalogue PDF has a code (e.g. <span className="font-mono">MAE123</span>) on each page. Search it
+          Every catalogue PDF has a code (e.g. <span className="font-mono">MAEA00</span>) on each page. Search it
           to see who generated that PDF and when.
         </CardDescription>
       </CardHeader>
@@ -43,7 +43,7 @@ export function PdfCodeLookup() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9 font-mono uppercase"
-              placeholder="MAE123"
+              placeholder="MAEA00"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && search()}

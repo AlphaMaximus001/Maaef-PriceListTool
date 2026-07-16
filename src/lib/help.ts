@@ -249,7 +249,7 @@ export const HELP = {
   "admin.pdfCode": {
     title: "Catalogue PDF code",
     body:
-      "Each catalogue PDF is stamped on every page with a short code in the form M + the generator's initial + E + three digits (e.g. MAE123). Type a code here to find who generated that PDF and when, plus which list it was made from. Useful for tracing a printed booklet back to its source.",
+      "Each catalogue PDF is stamped on every page with a code in the form M + the generator's initial + E + a running counter (a letter and two digits: A00, A01 … A99, B00 …). Every printed PDF gets the next code in sequence, so codes never repeat. Type a code here to find who generated that PDF and when, plus which list it was made from.",
   },
   "admin.capabilities": {
     title: "Capabilities",
