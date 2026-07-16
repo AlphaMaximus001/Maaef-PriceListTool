@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentList, getAllListProducts, PAGE_SIZE } from "@/lib/lists";
 import { buildListHtml, buildFooterTemplate, type PdfItem, type PdfFooter } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
+import { buildCatalogueHtml, type CatalogueItem } from "@/lib/pdf/catalogue";
+import { renderCataloguePdf } from "@/lib/pdf/catalogue-render";
 
 // Force Node runtime (Playwright needs it) and never cache a generated PDF.
 export const runtime = "nodejs";
@@ -24,6 +26,48 @@ export async function GET(
 
   const { type, id } = await params;
   const supabase = await createClient();
+
+  // ── Branded catalogue: fixed cover pages + computed index + priced pages ────
+  if (type === "catalogue") {
+    const currentList = await getCurrentList();
+    if (!currentList) return new NextResponse("No list", { status: 404 });
+
+    type Raw = {
+      sku: string; product_name: string; display_name: string | null;
+      category: string | null; specs: Record<string, string> | null; price: number; currency: string;
+    };
+    const products = await getAllListProducts<Raw>(
+      currentList.id,
+      "id, sku, product_name, display_name, category, specs, price, currency",
+    );
+
+    // Order by the category number encoded in the SKU (C1, C2, …) then serial,
+    // so the catalogue and its index follow the same order as the grid.
+    const catOrder = (sku: string) => { const m = /C(\d+)-/i.exec(sku); return m ? parseInt(m[1], 10) : 1e9; };
+    const serial = (sku: string) => { const m = /C\d+-(\d+)/i.exec(sku); return m ? parseInt(m[1], 10) : 1e9; };
+    products.sort((a, b) => catOrder(a.sku) - catOrder(b.sku) || serial(a.sku) - serial(b.sku) || a.product_name.localeCompare(b.product_name));
+
+    const catItems: CatalogueItem[] = products.map((p) => ({
+      name: p.display_name || p.product_name,
+      category: p.category ?? "Other",
+      pagesLeaves: p.specs?.pages || p.specs?.unit || "",
+      price: Number(p.price),
+      currency: p.currency,
+    }));
+
+    try {
+      const pdf = await renderCataloguePdf(buildCatalogueHtml(catItems));
+      return new NextResponse(new Uint8Array(pdf), {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `inline; filename="maaef-catalogue-${slug(currentList.name)}.pdf"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    } catch (err) {
+      return new NextResponse(`Catalogue export failed: ${err instanceof Error ? err.message : String(err)}`, { status: 500 });
+    }
+  }
 
   // MUSP/MP are only included when explicitly requested AND the user may see them.
   const wantIntel = new URL(req.url).searchParams.get("intel") === "1";

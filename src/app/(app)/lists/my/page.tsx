@@ -130,9 +130,17 @@ export default async function MyListPage() {
           </p>
         </div>
         {can.export_pdf && (
-          <div className="flex items-center gap-1.5">
-            <ExportPdfButton href="/api/export/my/list" filename="maaef-products.pdf" canIntel={can.view_margin} />
-            <InfoTip k="mylist.exportPdf" side="bottom" />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <ExportPdfButton href="/api/export/catalogue/list" filename="maaef-catalogue.pdf" />
+              <InfoTip k="mylist.catalogue" side="bottom" />
+            </div>
+            {can.view_margin && (
+              <div className="flex items-center gap-1.5">
+                <ExportPdfButton href="/api/export/my/list" filename="maaef-products.pdf" canIntel label="Simple list" />
+                <InfoTip k="mylist.exportPdf" side="bottom" />
+              </div>
+            )}
           </div>
         )}
       </div>

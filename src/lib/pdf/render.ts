@@ -10,6 +10,37 @@ import { chromium } from "playwright";
  * the Dockerfile installs it for production. An optional explicit path override
  * is honored for images that pin a non-default location.
  */
+/**
+ * Render HTML to a PDF at an exact page size with no margins — the HTML owns
+ * its own page-sized sections and page breaks. Used by the catalogue, whose
+ * pages must line up 1:1 with the fixed cover pages it's merged with.
+ */
+export async function renderSizedPdf(
+  html: string,
+  width: string,
+  height: string,
+): Promise<Buffer> {
+  const browser = await chromium.launch({
+    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    ...(process.env.CHROMIUM_EXECUTABLE_PATH
+      ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH }
+      : {}),
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle" });
+    const pdf = await page.pdf({
+      width,
+      height,
+      printBackground: true,
+      margin: { top: "0", right: "0", bottom: "0", left: "0" },
+    });
+    return pdf;
+  } finally {
+    await browser.close();
+  }
+}
+
 export async function renderPdf(
   html: string,
   opts?: { footerTemplate?: string },

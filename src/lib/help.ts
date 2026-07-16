@@ -126,10 +126,15 @@ export const HELP = {
     body:
       "Maaef's internal cost floor per product — what it costs you, not what clients pay. Only people with the view-cost permission can see this column or the numbers in it; it never appears in exports, PDFs, or to Viewers. The undercut guard uses it to stop prices being set below cost.",
   },
-  "mylist.exportPdf": {
-    title: "Download PDF",
+  "mylist.catalogue": {
+    title: "Catalogue PDF",
     body:
-      "Generates a branded A5 Maaef price list of the version you're currently viewing, reflecting all saved edits. Client-facing: it shows selling prices only — never cost. Requires the export permission.",
+      "The full branded price-list booklet — the print-ready document. It keeps the fixed Maaef cover and back pages exactly as designed, and between them builds a live Category Index (with page numbers) and the priced catalogue pages (S.No, item, pages/leaves, rate), grouped by category in the S.No — CATALOGUE PAGE format. The index page numbers are recalculated every time to match the current list's additions and removals. Reflects all saved edits of the version you're viewing; shows selling prices only — never cost.",
+  },
+  "mylist.exportPdf": {
+    title: "Simple list PDF",
+    body:
+      "A plain A5 table of the version you're viewing (no cover pages), optionally with the internal MUSP/MP columns for your own reference. Use the Catalogue PDF for the client-facing booklet. Requires the export permission.",
   },
   "mylist.inlineEdit": {
     title: "Editing prices in the grid",
