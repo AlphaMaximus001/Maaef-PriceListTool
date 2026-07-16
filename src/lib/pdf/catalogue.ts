@@ -26,7 +26,7 @@ type Page = { number: number; blocks: Block[] };
 type IndexEntry = { n: number; category: string; from: number; to: number };
 
 // Row-slots per catalogue page (a category bar counts as one slot). Tuned to A5.
-const ROWS_PER_PAGE = 37;
+const ROWS_PER_PAGE = 35;
 // Index entries per column; two columns per index page.
 const INDEX_PER_COL = 26;
 
@@ -115,10 +115,12 @@ const STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .page {
-    width: 419.25pt; height: 595.5pt; position: relative; overflow: hidden;
-    padding: 14pt 16pt 26pt; page-break-after: always;
+    width: 419.25pt; height: 595.5pt; overflow: hidden;
+    padding: 14pt 16pt 12pt; page-break-after: always;
+    display: flex; flex-direction: column;
   }
   .page:last-child { page-break-after: auto; }
+  .page table { flex: 0 0 auto; }
 
   /* Catalogue page chrome */
   .brand { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6pt; }
@@ -136,12 +138,17 @@ const STYLES = `
   }
   thead th.rate { text-align: right; }
 
-  tbody td { font-size: 7.5pt; padding: 2.6pt 6pt; border-bottom: .4pt solid #eee; vertical-align: middle; }
+  /* Rows are single-line and a fixed height so pagination is exact (no wrap
+     means no surprise overflow into the footer). Long text is clipped. */
+  tbody td {
+    font-size: 7.5pt; padding: 0 6pt; height: 13.5pt; border-bottom: .4pt solid #eee;
+    vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   tbody tr:nth-child(odd) td { background: #fbeef0; }
   /* Category bar defined AFTER striping so it always wins (same specificity). */
   tbody tr.cat td {
-    background: #4a0d0d; color: #fff; font-weight: 800; font-size: 7pt;
-    text-transform: uppercase; letter-spacing: .4pt; padding: 3.5pt 6pt; border-bottom: none;
+    background: #4a0d0d; color: #fff; font-weight: 800; font-size: 7pt; height: 14.5pt;
+    text-transform: uppercase; letter-spacing: .4pt; padding: 0 6pt; border-bottom: none;
   }
   tr.cat .cont { float: right; font-size: 6pt; font-weight: 700; color: #e6b8b8; letter-spacing: .5pt; }
   td.sno { text-align: center; color: #444; font-size: 7pt; }
@@ -149,8 +156,7 @@ const STYLES = `
   td.rate { text-align: right; color: #8B0000; font-weight: 700; white-space: nowrap; }
 
   .foot {
-    position: absolute; left: 16pt; right: 16pt; bottom: 10pt;
-    display: flex; justify-content: space-between; align-items: center;
+    margin-top: auto; display: flex; justify-content: space-between; align-items: center;
     border-top: .6pt solid #8B0000; padding-top: 3pt; font-size: 6.5pt; color: #777;
   }
   .foot .c { color: #999; letter-spacing: .5pt; font-variant: small-caps; }
