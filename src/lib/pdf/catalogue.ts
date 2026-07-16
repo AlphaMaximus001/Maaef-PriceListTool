@@ -153,6 +153,7 @@ const STYLES = `
     display: flex; justify-content: space-between; align-items: center;
     border-top: .6pt solid #8B0000; padding-top: 3pt; font-size: 6.5pt; color: #777;
   }
+  .foot .c { color: #999; letter-spacing: .5pt; font-variant: small-caps; }
   .foot .r { color: #8B0000; font-weight: 700; letter-spacing: .3pt; }
 
   /* Index page */
@@ -167,10 +168,15 @@ const STYLES = `
   .idx-row .num { flex: 0 0 auto; font-size: 6.5pt; font-weight: 800; color: #8B0000; background: #f4e1e4; border-radius: 2pt; padding: 1.5pt 3pt; }
   .idx-row .cat { flex: 1; font-size: 7.2pt; color: #222; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .idx-row .rng { flex: 0 0 auto; font-size: 7pt; font-weight: 700; color: #7a1f1f; }
-  .idx-foot { position: absolute; right: 16pt; bottom: 12pt; font-size: 7pt; font-weight: 700; color: #8B0000; letter-spacing: 1pt; }
+  .idx-foot { position: absolute; left: 16pt; right: 16pt; bottom: 12pt; display: flex; justify-content: space-between; align-items: center; font-size: 7pt; font-weight: 700; color: #8B0000; letter-spacing: 1pt; }
+  .idx-foot .code { color: #999; font-weight: 700; letter-spacing: .5pt; font-variant: small-caps; }
 `;
 
-function indexPagesHtml(index: IndexEntry[]): string {
+function codeTag(code?: string): string {
+  return code ? `Ref: ${esc(code)}` : "";
+}
+
+function indexPagesHtml(index: IndexEntry[], code?: string): string {
   const perPage = INDEX_PER_COL * 2;
   const pages: string[] = [];
   for (let p = 0; p < index.length; p += perPage) {
@@ -192,14 +198,14 @@ function indexPagesHtml(index: IndexEntry[]): string {
           <div class="idx-title"><h1>CATEGORY INDEX</h1><span class="pg">PAGE</span></div>
         </div>
         <div class="idx-cols">${col(left)}${col(right)}</div>
-        <div class="idx-foot">PRICE LIST 2026</div>
+        <div class="idx-foot"><span class="code">${codeTag(code)}</span><span>PRICE LIST 2026</span></div>
       </section>`,
     );
   }
   return pages.join("");
 }
 
-function cataloguePagesHtml(pages: Page[], currency: string): string {
+function cataloguePagesHtml(pages: Page[], currency: string, code?: string): string {
   return pages
     .map((pg) => {
       const rowsHtml = pg.blocks
@@ -228,16 +234,20 @@ function cataloguePagesHtml(pages: Page[], currency: string): string {
           <thead><tr><th>S.NO.</th><th>ITEM DESCRIPTION</th><th>PAGES / LEAVES</th><th class="rate">RATE</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <div class="foot"><span>Available at : Maaef Enterprises</span><span class="r">CATALOGUE PAGE ${pg.number}</span></div>
+        <div class="foot"><span>Available at : Maaef Enterprises</span><span class="c">${codeTag(code)}</span><span class="r">CATALOGUE PAGE ${pg.number}</span></div>
       </section>`;
     })
     .join("");
 }
 
-/** Build the merge-ready body HTML: index page(s) followed by catalogue pages. */
-export function buildCatalogueHtml(items: CatalogueItem[]): string {
+/**
+ * Build the merge-ready body HTML: index page(s) followed by catalogue pages.
+ * `code` (M<initial>E<3 digits>) is stamped on every generated page footer so
+ * an admin can trace the PDF back to its creator.
+ */
+export function buildCatalogueHtml(items: CatalogueItem[], code?: string): string {
   const currency = items[0]?.currency ?? "INR";
   const { pages, index } = paginate(items);
-  const body = indexPagesHtml(index) + cataloguePagesHtml(pages, currency);
+  const body = indexPagesHtml(index, code) + cataloguePagesHtml(pages, currency, code);
   return `<!doctype html><html><head><meta charset="utf-8"/><style>${STYLES}</style></head><body>${body}</body></html>`;
 }

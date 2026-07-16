@@ -55,8 +55,21 @@ export async function GET(
       currency: p.currency,
     }));
 
+    // Traceability code: M<first letter of name>E<3 digits>. Recorded with who
+    // and when so an admin can search it back to its creator.
+    const nameSource = (session.profile.full_name || session.profile.email || "X").trim();
+    const initial = (nameSource.match(/[A-Za-z]/)?.[0] ?? "X").toUpperCase();
+    const rand = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+    const code = `M${initial}E${rand}`;
+    await supabase.from("pdf_exports").insert({
+      code,
+      list_id: currentList.id,
+      list_name: currentList.name,
+      generated_by: session.profile.id,
+    });
+
     try {
-      const pdf = await renderCataloguePdf(buildCatalogueHtml(catItems));
+      const pdf = await renderCataloguePdf(buildCatalogueHtml(catItems, code));
       return new NextResponse(new Uint8Array(pdf), {
         headers: {
           "Content-Type": "application/pdf",

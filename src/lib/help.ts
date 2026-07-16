@@ -246,6 +246,11 @@ export const HELP = {
     body:
       "The margin added to a product's cost to compute MP when that product has no per-product margin set. Choose a percentage of cost or a flat rupee amount. Individual products can override this from their SKU detail panel.",
   },
+  "admin.pdfCode": {
+    title: "Catalogue PDF code",
+    body:
+      "Each catalogue PDF is stamped on every page with a short code in the form M + the generator's initial + E + three digits (e.g. MAE123). Type a code here to find who generated that PDF and when, plus which list it was made from. Useful for tracing a printed booklet back to its source.",
+  },
   "admin.capabilities": {
     title: "Capabilities",
     body:

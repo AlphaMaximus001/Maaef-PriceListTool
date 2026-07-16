@@ -3,6 +3,7 @@ import { getSession, CAPABILITIES, type Capability, type AppRole } from "@/lib/c
 import { createClient } from "@/lib/supabase/server";
 import { AdminClient, type AdminUser, type CapabilityMeta } from "./admin-client";
 import { MarginSettings } from "./margin-settings";
+import { PdfCodeLookup } from "./pdf-code-lookup";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +83,7 @@ export default async function AdminPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <AdminClient users={users} capabilities={capList} currentUserId={session.profile.id} />
+      <PdfCodeLookup />
       {session.can.edit_specs && (
         <MarginSettings type={dm.type ?? "percent"} value={dm.value ?? 0} />
       )}

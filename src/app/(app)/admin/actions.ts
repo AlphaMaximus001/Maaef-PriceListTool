@@ -98,6 +98,28 @@ export async function setApproved(formData: FormData): Promise<ActionResult> {
   return { ok: true, message: approved ? "Access granted." : "Access revoked." };
 }
 
+export type PdfCodeHit = { code: string; by: string; at: string; listName: string | null };
+
+/** Search a catalogue PDF code back to who generated it and when. */
+export async function lookupPdfCode(code: string): Promise<PdfCodeHit[]> {
+  await requireCapability("manage_users");
+  const c = code.trim();
+  if (!c) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("pdf_exports")
+    .select("code, generated_at, list_name, profiles(full_name, email)")
+    .ilike("code", c)
+    .order("generated_at", { ascending: false })
+    .limit(50);
+  return ((data as unknown as Array<{ code: string; generated_at: string; list_name: string | null; profiles: { full_name: string | null; email: string } | null }>) ?? []).map((r) => ({
+    code: r.code,
+    at: r.generated_at,
+    listName: r.list_name,
+    by: r.profiles?.full_name || r.profiles?.email || "—",
+  }));
+}
+
 export async function setActive(formData: FormData): Promise<ActionResult> {
   const me = await requireCapability("manage_users");
 
