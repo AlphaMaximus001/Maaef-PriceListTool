@@ -241,7 +241,7 @@ function cataloguePagesHtml(pages: Page[], currency: string, code?: string): str
           <thead><tr><th>S.NO.</th><th>ITEM DESCRIPTION</th><th>PAGES / LEAVES</th><th class="rate">RATE</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <div class="foot"><span>Available at : Maaef Enterprises</span><span class="c">${codeTag(code)}</span><span class="r">CATALOGUE PAGE ${pg.number}</span></div>
+        <div class="foot"><span>Available at : Maaef Enterprises</span><span class="c">${codeTag(code)}</span><span class="r">PAGE ${pg.number}</span></div>
       </section>`;
     })
     .join("");
