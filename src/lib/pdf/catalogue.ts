@@ -132,8 +132,9 @@ const STYLES = `
   table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   col.sno { width: 32pt; } col.desc { width: auto; } col.pl { width: 96pt; } col.rate { width: 62pt; }
 
+  /* Column header uses the grey of "ENTERPRISES" with black text. */
   thead th {
-    background: #2b0a0a; color: #cfc4c4; font-size: 6.5pt; font-weight: 700;
+    background: #9a9a9a; color: #000; font-size: 6.5pt; font-weight: 700;
     text-transform: uppercase; letter-spacing: .4pt; text-align: left; padding: 4pt 6pt;
   }
   thead th.rate { text-align: right; }
