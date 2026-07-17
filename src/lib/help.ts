@@ -249,7 +249,7 @@ export const HELP = {
   "admin.pdfCode": {
     title: "Catalogue PDF code",
     body:
-      "Each catalogue PDF is stamped on every page with a code in the form M + the generator's initial + E + a running counter (a letter and two digits: A00, A01 … A99, B00 …). Every printed PDF gets the next code in sequence, so codes never repeat. Type a code here to find who generated that PDF and when, plus which list it was made from.",
+      "Each catalogue PDF is stamped on every page with the generator's ID. It's their fixed employee ID — M + first-name initial + E + a letter for how many letters are in the first name (A=1, B=2, C=3, D=4 …) + their onboarding number (earliest hire = 99, counting down) — followed by their surname initial and a 2-digit counter of how many PDFs they've made (00, 01 …). E.g. Asha Rao's first PDF is MAED99R00. Type a code here to find who generated that PDF and when, and from which list.",
   },
   "admin.capabilities": {
     title: "Capabilities",

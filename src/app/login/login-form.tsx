@@ -72,9 +72,15 @@ export function LoginForm({ next }: { next: string }) {
           </form>
         ) : (
           <form action={signUpAction} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="su-name">Full name</Label>
-              <Input id="su-name" name="full_name" type="text" autoComplete="name" placeholder="Your name" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="su-first">First name</Label>
+                <Input id="su-first" name="first_name" type="text" autoComplete="given-name" placeholder="Asha" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="su-surname">Surname</Label>
+                <Input id="su-surname" name="surname" type="text" autoComplete="family-name" placeholder="Rao" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="su-email">Email</Label>

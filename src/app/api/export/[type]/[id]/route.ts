@@ -55,12 +55,9 @@ export async function GET(
       currency: p.currency,
     }));
 
-    // Traceability code: M<initial>E<letter><2 digits>, a systematic global
-    // sequence (A00, A01, …). record_pdf_export atomically takes the next code
-    // and records who/when/which-list so an admin can search it back.
-    const initial = (session.profile.full_name || session.profile.email || "X").trim();
+    // Traceability code: the employee's fixed ID + a per-employee PDF counter,
+    // derived and recorded server-side (see 0023_employee_id_scheme.sql).
     const { data: codeData } = await supabase.rpc("record_pdf_export", {
-      p_initial: initial,
       p_list_id: currentList.id,
       p_list_name: currentList.name,
     });

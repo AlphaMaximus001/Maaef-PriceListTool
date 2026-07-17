@@ -52,10 +52,14 @@ export async function signUp(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const fullName = String(formData.get("full_name") || "").trim();
+  const firstName = String(formData.get("first_name") || "").trim();
+  const surname = String(formData.get("surname") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
 
+  if (!firstName) {
+    return { error: "Enter your first name." };
+  }
   if (!email || !password) {
     return { error: "Enter your email and a password." };
   }
@@ -63,6 +67,7 @@ export async function signUp(
     return { error: "Use at least 8 characters for your password." };
   }
 
+  const fullName = [firstName, surname].filter(Boolean).join(" ");
   const supabase = await createClient();
   // Point the confirmation link back at THIS deployment (not Supabase's Site
   // URL default of localhost). The URL must also be in Supabase's Redirect URL
@@ -72,7 +77,7 @@ export async function signUp(
     email,
     password,
     options: {
-      data: { full_name: fullName || email },
+      data: { full_name: fullName || email, first_name: firstName, surname },
       ...(origin ? { emailRedirectTo: `${origin}/login` } : {}),
     },
   });

@@ -9,9 +9,11 @@ import {
   setRole,
   setActive,
   setApproved,
+  setEmployeeName,
   setCapabilityGrant,
   type ActionResult,
 } from "./actions";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,6 +68,9 @@ export type AdminUser = {
   id: string;
   email: string;
   fullName: string | null;
+  firstName: string | null;
+  surname: string | null;
+  employeeCode: string; // fixed part of the PDF ID, e.g. MAE499
   role: AppRole;
   active: boolean;
   approved: boolean;
@@ -161,8 +166,16 @@ export function AdminClient({
               {users.map((user) => (
                 <TableRow key={user.id} className={!user.approved ? "bg-maaef-blush/30" : undefined}>
                   <TableCell>
-                    <div className="font-medium">{user.fullName || user.email}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium">{user.fullName || user.email}</span>
+                      <EditNameDialog user={user} />
+                    </div>
                     <div className="text-xs text-muted-foreground">{user.email}</div>
+                    <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <span>PDF ID</span>
+                      <Badge variant="muted" className="font-mono">{user.employeeCode}</Badge>
+                      {!user.surname && <span className="text-amber-600">· add surname</span>}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {user.approved ? (
@@ -284,9 +297,15 @@ function CreateUserDialog() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full name</Label>
-              <Input id="full_name" name="full_name" placeholder="Asha Rao" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">First name</Label>
+                <Input id="first_name" name="first_name" placeholder="Asha" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="surname">Surname</Label>
+                <Input id="surname" name="surname" placeholder="Rao" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -316,6 +335,53 @@ function CreateUserDialog() {
             <Button type="submit" disabled={pending}>
               {pending ? "Creating…" : "Create user"}
             </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditNameDialog({ user }: { user: AdminUser }) {
+  const [open, setOpen] = React.useState(false);
+  const [pending, startTransition] = React.useTransition();
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" title="Edit name">
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <form
+          action={(fd) => {
+            fd.set("user_id", user.id);
+            startTransition(async () => {
+              const r = notify(await setEmployeeName(fd));
+              if (r.ok) setOpen(false);
+            });
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Edit name</DialogTitle>
+            <DialogDescription>
+              The first name (its initial and length) and surname initial drive this person&apos;s PDF ID.
+              Their onboarding number never changes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-4">
+            <div className="space-y-2">
+              <Label htmlFor={`fn-${user.id}`}>First name</Label>
+              <Input id={`fn-${user.id}`} name="first_name" defaultValue={user.firstName ?? ""} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`sn-${user.id}`}>Surname</Label>
+              <Input id={`sn-${user.id}`} name="surname" defaultValue={user.surname ?? ""} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

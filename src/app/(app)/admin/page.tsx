@@ -28,7 +28,7 @@ export default async function AdminPage() {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("id, email, full_name, role, active, approved, created_at")
+        .select("id, email, full_name, first_name, surname, onboard_no, role, active, approved, created_at")
         .order("created_at", { ascending: true }),
       supabase.from("capabilities").select("key, label, description").order("key"),
       supabase.from("role_defaults").select("role, capability_key, granted"),
@@ -69,10 +69,18 @@ export default async function AdminPage() {
       }),
     ) as AdminUser["effective"];
 
+    const letters = (p.first_name ?? "").replace(/[^A-Za-z]/g, "") || "X";
+    // Letter-count → a letter: 1→A, 2→B, 3→C, 4→D … (capped at Z).
+    const lenLetter = String.fromCharCode(64 + Math.min(Math.max(letters.length, 1), 26));
+    const employeeCode = `M${letters[0].toUpperCase()}E${lenLetter}${String(p.onboard_no ?? 99).padStart(2, "0")}`;
+
     return {
       id: p.id,
       email: p.email,
       fullName: p.full_name,
+      firstName: p.first_name ?? null,
+      surname: p.surname ?? null,
+      employeeCode,
       role,
       active: p.active,
       approved: p.approved,
