@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireSession, type Capability } from "@/lib/capabilities";
 import {
   Card,
@@ -36,6 +37,9 @@ const PHASES: { n: number; name: string; status: "live" | "next" | "planned" }[]
 
 export default async function DashboardPage() {
   const { profile, can } = await requireSession();
+
+  // Dashboard is admin-only; everyone else starts at Price Lists.
+  if (!can.manage_users) redirect("/lists");
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">

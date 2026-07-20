@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/capabilities";
 
 /** The origin the request actually came from (works on Render behind a proxy). */
 async function requestOrigin(): Promise<string | null> {
@@ -38,7 +39,13 @@ export async function signIn(
   }
 
   revalidatePath("/", "layout");
-  redirect(next.startsWith("/") ? next : "/dashboard");
+
+  // A specific deep link is honored; otherwise route by role — admins to the
+  // Dashboard, everyone else straight to Price Lists (Dashboard is admin-only).
+  const explicit = next.startsWith("/") && next !== "/dashboard" ? next : null;
+  if (explicit) redirect(explicit);
+  const session = await getSession();
+  redirect(session?.can.manage_users ? "/dashboard" : "/lists");
 }
 
 /**
@@ -95,7 +102,7 @@ export async function signUp(
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect("/lists");
 }
 
 export async function signOut() {

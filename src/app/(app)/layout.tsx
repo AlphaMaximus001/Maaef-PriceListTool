@@ -25,7 +25,10 @@ export default async function AppLayout({
   // can't use (Customize / Admin / Action logs) are simply omitted for them;
   // everything else is always visible. All gating is resolver-driven.
   const items: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+    // Dashboard is admin-only; others start at Price Lists.
+    ...(can.manage_users
+      ? [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" as const }]
+      : []),
     { href: "/lists", label: "Price Lists", icon: "lists" },
     { href: "/lists/my", label: "My Products", icon: "products" },
     { href: "/compare", label: "Compare", icon: "overlap" },
