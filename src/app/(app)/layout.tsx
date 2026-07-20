@@ -35,16 +35,15 @@ export default async function AppLayout({
     { href: "/matches", label: "Match Review", icon: "matches" },
     { href: "/configurator", label: "Add Ons", icon: "configurator" },
     { href: "/flags", label: "Flags", icon: "flags" },
-    { href: "/history", label: "Edit History", icon: "history" },
+    // Action Logs now also holds the per-list edit history + restore tools,
+    // so it's visible to everyone (the all-lists audit tab is admin-only inside).
+    { href: "/logs", label: "Action Logs", icon: "logs" },
     ...(can.edit_specs
       ? [{ href: "/customize", label: "Add SKU", icon: "customize" as const }]
       : []),
     { href: "/documents", label: "Upload Documents", icon: "documents" },
     ...(can.manage_users
-      ? [
-          { href: "/admin", label: "Admin", icon: "admin" as const },
-          { href: "/logs", label: "Action Logs", icon: "logs" as const },
-        ]
+      ? [{ href: "/admin", label: "Admin", icon: "admin" as const }]
       : []),
   ];
   const groups: NavGroup[] = [{ title: "", items }];
