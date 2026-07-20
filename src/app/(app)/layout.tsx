@@ -29,17 +29,17 @@ export default async function AppLayout({
     ...(can.manage_users
       ? [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" as const }]
       : []),
-    { href: "/lists", label: "Price Lists", icon: "lists" },
+    { href: "/lists", label: "Upload Inventory", icon: "lists" },
     { href: "/lists/my", label: "My Products", icon: "products" },
     { href: "/compare", label: "Compare", icon: "overlap" },
     { href: "/matches", label: "Match Review", icon: "matches" },
-    { href: "/configurator", label: "Configurator", icon: "configurator" },
+    { href: "/configurator", label: "Add Ons", icon: "configurator" },
     { href: "/flags", label: "Flags", icon: "flags" },
     { href: "/history", label: "Edit History", icon: "history" },
     ...(can.edit_specs
-      ? [{ href: "/customize", label: "SKU Inventory", icon: "customize" as const }]
+      ? [{ href: "/customize", label: "Add SKU", icon: "customize" as const }]
       : []),
-    { href: "/documents", label: "Documents", icon: "documents" },
+    { href: "/documents", label: "Upload Documents", icon: "documents" },
     ...(can.manage_users
       ? [
           { href: "/admin", label: "Admin", icon: "admin" as const },
