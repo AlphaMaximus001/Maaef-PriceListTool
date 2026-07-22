@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/capabilities";
 import { SidebarNav, type NavGroup, type NavItem } from "@/components/app-shell/sidebar-nav";
 import { UserMenu } from "@/components/app-shell/user-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { RealtimeWatcher } from "@/components/realtime-watcher";
 import { AwaitingAccess } from "@/components/awaiting-access";
 
@@ -64,7 +65,8 @@ export default async function AppLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b bg-card px-4 md:px-6">
           <div className="md:hidden font-semibold">Maaef Pricing</div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <UserMenu email={profile.email} role={profile.role} />
           </div>
         </header>
