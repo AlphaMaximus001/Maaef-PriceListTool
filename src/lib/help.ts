@@ -251,6 +251,11 @@ export const HELP = {
     body:
       "Each catalogue PDF is stamped on every page with the generator's ID. It's their fixed employee ID — M + first-name initial + E + a letter for how many letters are in the first name (A=1, B=2, C=3, D=4 …) + their onboarding number (earliest hire = 99, counting down) — followed by their surname initial and a 2-digit counter of how many PDFs they've made (00, 01 …). E.g. Asha Rao's first PDF is MAED99R00. Type a code here to find who generated that PDF and when, and from which list.",
   },
+  "admin.teams": {
+    title: "Departments & directory",
+    body:
+      "Build your teams here. Create a department, then add people to it and mark each one as Team Lead, HR, or Member. Set each person's phone and designation with the pencil icon — those details, plus their email, show up in the directory on their teammates' dashboards so everyone knows who to contact and how. Removing someone from a team (or deleting a team) never deletes their account.",
+  },
   "admin.capabilities": {
     title: "Capabilities",
     body:

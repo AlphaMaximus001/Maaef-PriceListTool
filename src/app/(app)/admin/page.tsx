@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminClient, type AdminUser, type CapabilityMeta } from "./admin-client";
 import { MarginSettings } from "./margin-settings";
 import { PdfCodeLookup } from "./pdf-code-lookup";
+import { TeamsAdmin, type DirTeam, type DirPerson, type DirMember } from "./teams-admin";
+import { type TeamMemberRole } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,7 @@ export default async function AdminPage() {
 
   const supabase = await createClient();
 
-  const [{ data: profiles }, { data: caps }, { data: roleDefaults }, { data: grants }, { data: marginSetting }] =
+  const [{ data: profiles }, { data: caps }, { data: roleDefaults }, { data: grants }, { data: marginSetting }, { data: teamRows }, { data: memberRows }] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -34,6 +36,11 @@ export default async function AdminPage() {
       supabase.from("role_defaults").select("role, capability_key, granted"),
       supabase.from("capability_grants").select("user_id, capability_key, granted"),
       supabase.from("app_settings").select("value").eq("key", "default_margin").maybeSingle(),
+      supabase.from("teams").select("id, name").order("name"),
+      supabase
+        .from("team_members")
+        .select("id, team_id, member_role, profiles(id, full_name, email, phone, title)")
+        .order("created_at", { ascending: true }),
     ]);
 
   const dm = (marginSetting?.value as { type?: "percent" | "flat"; value?: number } | null) ?? {};
@@ -88,9 +95,39 @@ export default async function AdminPage() {
     };
   });
 
+  // ── Department directory ────────────────────────────────────────────────────
+  const membersByTeam: Record<string, DirMember[]> = {};
+  for (const m of (memberRows as unknown as Array<{
+    id: string; team_id: string; member_role: TeamMemberRole;
+    profiles: { id: string; full_name: string | null; email: string; phone: string | null; title: string | null } | null;
+  }>) ?? []) {
+    if (!m.profiles) continue;
+    (membersByTeam[m.team_id] ??= []).push({
+      memberId: m.id,
+      profileId: m.profiles.id,
+      name: m.profiles.full_name || m.profiles.email,
+      email: m.profiles.email,
+      phone: m.profiles.phone,
+      title: m.profiles.title,
+      memberRole: m.member_role,
+    });
+  }
+  const rank: Record<TeamMemberRole, number> = { lead: 0, hr: 1, member: 2 };
+  const teams: DirTeam[] = ((teamRows as { id: string; name: string }[]) ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    members: (membersByTeam[t.id] ?? []).sort(
+      (a, b) => rank[a.memberRole] - rank[b.memberRole] || a.name.localeCompare(b.name),
+    ),
+  }));
+  const people: DirPerson[] = (profiles ?? [])
+    .filter((p) => p.active && p.approved)
+    .map((p) => ({ id: p.id, name: p.full_name || p.email, email: p.email }));
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <AdminClient users={users} capabilities={capList} currentUserId={session.profile.id} />
+      <TeamsAdmin teams={teams} people={people} />
       <PdfCodeLookup />
       {session.can.edit_specs && (
         <MarginSettings type={dm.type ?? "percent"} value={dm.value ?? 0} />

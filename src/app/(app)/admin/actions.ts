@@ -143,6 +143,101 @@ export async function lookupPdfCode(code: string): Promise<PdfCodeHit[]> {
   }));
 }
 
+// ── Department directory: teams, membership, and contact details ─────────────
+
+export type TeamMemberRole = "lead" | "hr" | "member";
+const MEMBER_ROLES: TeamMemberRole[] = ["lead", "hr", "member"];
+
+export async function createTeam(formData: FormData): Promise<ActionResult> {
+  await requireCapability("manage_users");
+  const name = String(formData.get("name") || "").trim();
+  if (!name) return { ok: false, message: "Team name is required." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("teams").insert({ name });
+  if (error) {
+    return { ok: false, message: /duplicate|unique/i.test(error.message) ? "A team with that name already exists." : error.message };
+  }
+  revalidatePath("/admin");
+  return { ok: true, message: `Team “${name}” created.` };
+}
+
+export async function renameTeam(formData: FormData): Promise<ActionResult> {
+  await requireCapability("manage_users");
+  const teamId = String(formData.get("team_id") || "");
+  const name = String(formData.get("name") || "").trim();
+  if (!name) return { ok: false, message: "Team name is required." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("teams").update({ name }).eq("id", teamId);
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/admin");
+  return { ok: true, message: "Team renamed." };
+}
+
+export async function deleteTeam(teamId: string): Promise<ActionResult> {
+  await requireCapability("manage_users");
+  const supabase = await createClient();
+  const { error } = await supabase.from("teams").delete().eq("id", teamId);
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/admin");
+  return { ok: true, message: "Team removed." };
+}
+
+export async function addTeamMember(formData: FormData): Promise<ActionResult> {
+  await requireCapability("manage_users");
+  const teamId = String(formData.get("team_id") || "");
+  const profileId = String(formData.get("profile_id") || "");
+  const memberRole = String(formData.get("member_role") || "member") as TeamMemberRole;
+  if (!teamId || !profileId) return { ok: false, message: "Pick a person to add." };
+  if (!MEMBER_ROLES.includes(memberRole)) return { ok: false, message: "Invalid role." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("team_members")
+    .upsert({ team_id: teamId, profile_id: profileId, member_role: memberRole }, { onConflict: "team_id,profile_id" });
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/admin");
+  return { ok: true, message: "Member added." };
+}
+
+export async function setMemberRole(memberId: string, memberRole: TeamMemberRole): Promise<ActionResult> {
+  await requireCapability("manage_users");
+  if (!MEMBER_ROLES.includes(memberRole)) return { ok: false, message: "Invalid role." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("team_members").update({ member_role: memberRole }).eq("id", memberId);
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/admin");
+  return { ok: true, message: "Role updated." };
+}
+
+export async function removeTeamMember(memberId: string): Promise<ActionResult> {
+  await requireCapability("manage_users");
+  const supabase = await createClient();
+  const { error } = await supabase.from("team_members").delete().eq("id", memberId);
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/admin");
+  return { ok: true, message: "Member removed." };
+}
+
+/** Admin sets an employee's contact details (phone + designation) for the directory. */
+export async function setContactDetails(formData: FormData): Promise<ActionResult> {
+  await requireCapability("manage_users");
+  const userId = String(formData.get("user_id") || "");
+  const phone = String(formData.get("phone") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  if (!userId) return { ok: false, message: "Missing user." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ phone: phone || null, title: title || null })
+    .eq("id", userId);
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/admin");
+  return { ok: true, message: "Contact details updated." };
+}
+
 export async function setActive(formData: FormData): Promise<ActionResult> {
   const me = await requireCapability("manage_users");
 

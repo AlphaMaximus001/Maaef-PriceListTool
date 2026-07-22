@@ -25,16 +25,15 @@ export default async function AppLayout({
   // can't use (Customize / Admin / Action logs) are simply omitted for them;
   // everything else is always visible. All gating is resolver-driven.
   const items: NavItem[] = [
-    // Dashboard is admin-only; others start at Price Lists.
-    ...(can.manage_users
-      ? [{ href: "/dashboard", label: "Dashboard", icon: "dashboard" as const }]
-      : []),
-    { href: "/lists", label: "Upload Inventory", icon: "lists" },
-    { href: "/lists/my", label: "My Products", icon: "products" },
-    { href: "/compare", label: "Compare", icon: "overlap" },
+    // The Dashboard is now a personal home (self details, department directory,
+    // pins, notes, quick document downloads) — so it's visible to everyone.
+    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+    { href: "/lists", label: "Upload List", icon: "lists" },
+    { href: "/lists/my", label: "My Lists", icon: "products" },
+    { href: "/compare", label: "Filter", icon: "overlap" },
     { href: "/matches", label: "Match Review", icon: "matches" },
-    { href: "/configurator", label: "Add Ons", icon: "configurator" },
-    { href: "/flags", label: "Flags", icon: "flags" },
+    { href: "/configurator", label: "SKU Editor", icon: "configurator" },
+    { href: "/flags", label: "Flag SKU", icon: "flags" },
     // Action Logs now also holds the per-list edit history + restore tools,
     // so it's visible to everyone (the all-lists audit tab is admin-only inside).
     { href: "/logs", label: "Action Logs", icon: "logs" },

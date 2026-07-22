@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireSession, type Capability } from "@/lib/capabilities";
+import { getSession } from "@/lib/capabilities";
+import { createClient } from "@/lib/supabase/server";
+import { getLists } from "@/lib/lists";
 import {
   Card,
   CardContent,
@@ -9,124 +10,228 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { InfoTip } from "@/components/info-tip";
-import { Check, X } from "lucide-react";
+import { Mail, Phone, User, Users, Crown, HeartHandshake } from "lucide-react";
+import {
+  PinnedListCard,
+  PinnedSkuCard,
+  NotesCard,
+  QuickDocsCard,
+} from "./dashboard-client";
 
-const CAP_LABELS: Record<Capability, string> = {
-  view_cost: "View cost floor",
-  view_margin: "View MP & MUSP",
-  edit_specs: "Edit product details",
-  edit_price: "Edit prices",
-  bulk_edit: "Bulk / category edit",
-  upload_competitor: "Upload competitor lists",
-  confirm_match: "Confirm matches",
-  export_pdf: "Export branded PDF",
-  manage_users: "Manage users",
-  manage_documents: "Manage documents",
+export const dynamic = "force-dynamic";
+
+type MemberRole = "lead" | "hr" | "member";
+type DirEntry = {
+  profileId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  title: string | null;
+  memberRole: MemberRole;
 };
 
-const PHASES: { n: number; name: string; status: "live" | "next" | "planned" }[] = [
-  { n: 1, name: "Auth + permissions + Admin", status: "live" },
-  { n: 2, name: "Intake + list display", status: "live" },
-  { n: 3, name: "Matching + overlap / unique views", status: "live" },
-  { n: 4, name: "Edit engine + audit + undercut guard", status: "live" },
-  { n: 5, name: "SKU configurator", status: "live" },
-  { n: 6, name: "Branded PDF export", status: "live" },
-];
+const employeeCode = (firstName: string | null, onboard: number | null) => {
+  const letters = (firstName ?? "").replace(/[^A-Za-z]/g, "") || "X";
+  const lenLetter = String.fromCharCode(64 + Math.min(Math.max(letters.length, 1), 26));
+  return `M${letters[0].toUpperCase()}E${lenLetter}${String(onboard ?? 99).padStart(2, "0")}`;
+};
 
 export default async function DashboardPage() {
-  const { profile, can } = await requireSession();
+  const session = await getSession();
+  if (!session) redirect("/login");
+  const { profile } = session;
 
-  // Dashboard is admin-only; everyone else starts at Price Lists.
-  if (!can.manage_users) redirect("/lists");
+  const supabase = await createClient();
+
+  // ── Self details ────────────────────────────────────────────────────────────
+  const { data: me } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, first_name, surname, role, phone, title, onboard_no")
+    .eq("id", profile.id)
+    .maybeSingle();
+
+  const myCode = employeeCode(me?.first_name ?? null, me?.onboard_no ?? null);
+
+  // ── Department directory: which team(s) am I in, and who's on them? ──────────
+  const { data: myMemberships } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("profile_id", profile.id);
+  const teamIds = (myMemberships ?? []).map((m) => m.team_id as string);
+
+  type Team = { id: string; name: string; entries: DirEntry[] };
+  const teams: Team[] = [];
+  if (teamIds.length) {
+    const [{ data: teamRows }, { data: memberRows }] = await Promise.all([
+      supabase.from("teams").select("id, name").in("id", teamIds),
+      supabase
+        .from("team_members")
+        .select("team_id, member_role, profiles(id, full_name, email, phone, title)")
+        .in("team_id", teamIds),
+    ]);
+
+    for (const t of (teamRows as { id: string; name: string }[]) ?? []) {
+      const entries: DirEntry[] = ((memberRows as unknown as Array<{
+        team_id: string; member_role: MemberRole;
+        profiles: { id: string; full_name: string | null; email: string; phone: string | null; title: string | null } | null;
+      }>) ?? [])
+        .filter((r) => r.team_id === t.id && r.profiles)
+        .map((r) => ({
+          profileId: r.profiles!.id,
+          name: r.profiles!.full_name || r.profiles!.email,
+          email: r.profiles!.email,
+          phone: r.profiles!.phone,
+          title: r.profiles!.title,
+          memberRole: r.member_role,
+        }));
+      // Order: lead, hr, then members alphabetically.
+      const rank: Record<MemberRole, number> = { lead: 0, hr: 1, member: 2 };
+      entries.sort((a, b) => rank[a.memberRole] - rank[b.memberRole] || a.name.localeCompare(b.name));
+      teams.push({ id: t.id, name: t.name, entries });
+    }
+  }
+
+  // ── Pins + notes ────────────────────────────────────────────────────────────
+  const { data: prefs } = await supabase
+    .from("dashboard_prefs")
+    .select("pinned_list_id, pinned_product_id, notes")
+    .eq("profile_id", profile.id)
+    .maybeSingle();
+
+  const lists = await getLists();
+  const pinnedList = prefs?.pinned_list_id
+    ? lists.find((l) => l.id === prefs.pinned_list_id) ?? null
+    : null;
+
+  let pinnedSku: { id: string; sku: string; name: string; price: number; currency: string; listName: string } | null = null;
+  if (prefs?.pinned_product_id) {
+    const { data: p } = await supabase
+      .from("my_products")
+      .select("id, sku, product_name, display_name, price, currency, active, price_lists(name)")
+      .eq("id", prefs.pinned_product_id)
+      .maybeSingle();
+    const row = p as unknown as {
+      id: string; sku: string; product_name: string; display_name: string | null;
+      price: number; currency: string; active: boolean; price_lists: { name: string } | null;
+    } | null;
+    if (row && row.active) {
+      pinnedSku = {
+        id: row.id, sku: row.sku, name: row.display_name || row.product_name,
+        price: Number(row.price), currency: row.currency, listName: row.price_lists?.name ?? "—",
+      };
+    }
+  }
+
+  // ── Quick documents ─────────────────────────────────────────────────────────
+  const { data: docRows } = await supabase
+    .from("documents")
+    .select("id, title, category, file_path")
+    .order("uploaded_at", { ascending: false })
+    .limit(12);
+  const docs = ((docRows as Array<{ id: string; title: string; category: string | null; file_path: string }>) ?? []).map(
+    (d) => ({ id: d.id, title: d.title, category: d.category, filePath: d.file_path }),
+  );
+
+  const listChoices = lists.map((l) => ({ id: l.id, name: l.name, is_original: l.is_original }));
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome back{profile.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}.
+          Welcome back{me?.first_name ? `, ${me.first_name}` : ""}.
         </h1>
-        <p className="mt-1 text-muted-foreground">
-          Where you overlap with competitors — and where you&apos;re unique.
-        </p>
+        <p className="mt-1 text-muted-foreground">Your details, your team, and the things you use most.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
+        {/* Self details */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Your access <InfoTip k="dashboard.access" />
+            <CardTitle className="flex items-center gap-2 text-base">
+              <User className="h-4 w-4 text-maaef-red" /> Your details
             </CardTitle>
-            <CardDescription>
-              Resolved through <code className="text-xs">has_capability()</code> —
-              role default, overridden per-person by an admin.
-            </CardDescription>
+            <CardDescription>Your profile as it appears to the team.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="mb-3 flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Role</span>
-              <Badge variant="secondary" className="capitalize">
-                {profile.role}
-              </Badge>
-            </div>
-            <ul className="space-y-1.5">
-              {(Object.keys(CAP_LABELS) as Capability[]).map((cap) => (
-                <li key={cap} className="flex items-center gap-2 text-sm">
-                  {can[cap] ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <X className="h-4 w-4 text-muted-foreground/50" />
-                  )}
-                  <span className={can[cap] ? "" : "text-muted-foreground"}>
-                    {CAP_LABELS[cap]}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <CardContent className="space-y-2 text-sm">
+            <Row label="Name" value={me?.full_name || "—"} />
+            <Row label="Designation" value={me?.title || "—"} />
+            <Row label="Role" value={<Badge variant="secondary" className="capitalize">{me?.role}</Badge>} />
+            <Row label="Email" value={me?.email || "—"} />
+            <Row label="Phone" value={me?.phone || "—"} />
+            <Row label="Employee ID" value={<span className="font-mono">{myCode}</span>} />
+            <Row label="Department" value={teams.length ? teams.map((t) => t.name).join(", ") : "Not assigned"} />
+            <p className="pt-1 text-xs text-muted-foreground">
+              Name, designation and contact details are maintained by your admin.
+            </p>
           </CardContent>
         </Card>
 
+        {/* Department directory */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Build roadmap <InfoTip k="dashboard.roadmap" />
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4 text-maaef-red" /> Your department
             </CardTitle>
-            <CardDescription>Phases ship in order; each is usable before the next.</CardDescription>
+            <CardDescription>Who to reach, and how.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ol className="space-y-2">
-              {PHASES.map((p) => (
-                <li key={p.n} className="flex items-center gap-3 text-sm">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                    {p.n}
-                  </span>
-                  <span className="flex-1">{p.name}</span>
-                  {p.status === "live" && <Badge variant="success">Live</Badge>}
-                  {p.status === "next" && <Badge>Next</Badge>}
-                  {p.status === "planned" && <Badge variant="muted">Planned</Badge>}
-                </li>
-              ))}
-            </ol>
+          <CardContent className="space-y-4">
+            {teams.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                You haven&apos;t been added to a team yet. An admin can add you from the Admin page.
+              </p>
+            ) : (
+              teams.map((t) => (
+                <div key={t.id} className="space-y-2">
+                  {teams.length > 1 && <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t.name}</div>}
+                  {t.entries.map((e) => (
+                    <div key={e.profileId} className="rounded-lg border p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium">{e.name}</span>
+                          <RoleBadge role={e.memberRole} />
+                        </div>
+                        {e.title && <span className="shrink-0 text-xs text-muted-foreground">{e.title}</span>}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <a href={`mailto:${e.email}`} className="flex items-center gap-1 hover:text-foreground">
+                          <Mail className="h-3.5 w-3.5" /> {e.email}
+                        </a>
+                        {e.phone && (
+                          <a href={`tel:${e.phone}`} className="flex items-center gap-1 hover:text-foreground">
+                            <Phone className="h-3.5 w-3.5" /> {e.phone}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
+
+        <PinnedListCard lists={listChoices} pinned={pinnedList ? { id: pinnedList.id, name: pinnedList.name } : null} />
+        <PinnedSkuCard pinned={pinnedSku} />
+        <NotesCard initial={prefs?.notes ?? ""} />
+        <QuickDocsCard docs={docs} />
       </div>
-
-      {can.manage_users && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Admin</CardTitle>
-            <CardDescription>
-              Manage users, roles, and per-person capability grants.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/admin">Open Admin</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium">{value}</span>
+    </div>
+  );
+}
+
+function RoleBadge({ role }: { role: MemberRole }) {
+  if (role === "lead")
+    return <Badge className="gap-1 bg-maaef-red/10 text-maaef-red"><Crown className="h-3 w-3" /> Team Lead</Badge>;
+  if (role === "hr")
+    return <Badge variant="secondary" className="gap-1"><HeartHandshake className="h-3 w-3" /> HR</Badge>;
+  return <Badge variant="muted">Member</Badge>;
 }
