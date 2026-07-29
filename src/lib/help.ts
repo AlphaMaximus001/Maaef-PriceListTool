@@ -231,6 +231,11 @@ export const HELP = {
     body:
       "The permission baseline. Viewer: look, don't touch. Editor: edit prices, bulk edit, upload lists, confirm matches, export PDFs — but no cost visibility and no user management. Admin: everything above plus this page. Superadmin: an Admin who can also permanently delete accounts. Individual abilities can still be granted or denied per person on top of the role.",
   },
+  "admin.peers": {
+    title: "Why some rows are locked",
+    body:
+      "People of the same role can't change each other's access. An Admin can't change another Admin's role, active state, approval, or capabilities; a Superadmin can't change another Superadmin's. Those rows are marked 'Peer' and their controls are switched off. You can still edit a peer's name and contact details for the directory — the lock is only on access. To change a peer's access, someone of a higher role has to do it: a Superadmin can manage Admins, but an Admin can never manage a Superadmin.",
+  },
   "admin.superadmin": {
     title: "Superadmin & deleting accounts",
     body:

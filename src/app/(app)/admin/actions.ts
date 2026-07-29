@@ -13,11 +13,24 @@ export type ActionResult = { ok: boolean; message: string };
 
 const ROLES: AppRole[] = ["superadmin", "admin", "editor", "viewer"];
 
-/** The target account's role, for the Superadmin protection checks below. */
+/** The target account's role, for the protection checks below. */
 async function roleOf(userId: string): Promise<AppRole | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
   return (data?.role as AppRole | undefined) ?? null;
+}
+
+/**
+ * Peers can't change each other's access: an Admin can't act on another Admin,
+ * a Superadmin can't act on another Superadmin. Acting on YOURSELF isn't a peer
+ * action — the existing self-rules cover that. The DB enforces this too; this
+ * is the readable message.
+ */
+const PEER_MESSAGE = "You can't change the access of someone who holds your own role.";
+
+async function isPeer(actorId: string, actorRole: AppRole, targetId: string): Promise<boolean> {
+  if (targetId === actorId) return false;
+  return (await roleOf(targetId)) === actorRole;
 }
 
 /**
@@ -111,6 +124,9 @@ export async function setRole(formData: FormData): Promise<ActionResult> {
   if ((await roleOf(userId)) === "superadmin" && role !== "superadmin") {
     return { ok: false, message: "A Superadmin can't be demoted — not by another Superadmin, and not by themselves." };
   }
+  if (await isPeer(me.profile.id, me.profile.role, userId)) {
+    return { ok: false, message: PEER_MESSAGE };
+  }
   if (role === "superadmin" && me.profile.role !== "superadmin") {
     return { ok: false, message: "Only a Superadmin can grant the Superadmin role." };
   }
@@ -134,6 +150,9 @@ export async function setApproved(formData: FormData): Promise<ActionResult> {
   }
   if (!approved && (await roleOf(userId)) === "superadmin") {
     return { ok: false, message: "A Superadmin's access can't be revoked." };
+  }
+  if (await isPeer(me.profile.id, me.profile.role, userId)) {
+    return { ok: false, message: PEER_MESSAGE };
   }
 
   const supabase = await createClient();
@@ -272,6 +291,9 @@ export async function setActive(formData: FormData): Promise<ActionResult> {
   if (!active && (await roleOf(userId)) === "superadmin") {
     return { ok: false, message: "A Superadmin can't be deactivated." };
   }
+  if (await isPeer(me.profile.id, me.profile.role, userId)) {
+    return { ok: false, message: PEER_MESSAGE };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").update({ active }).eq("id", userId);
@@ -297,6 +319,14 @@ export async function setCapabilityGrant(formData: FormData): Promise<ActionResu
   if (!CAPABILITIES.includes(cap)) return { ok: false, message: "Unknown capability." };
   if (userId === me.profile.id && cap === "manage_users" && mode === "revoke") {
     return { ok: false, message: "You can't revoke your own manage-users access." };
+  }
+  if (await isPeer(me.profile.id, me.profile.role, userId)) {
+    return { ok: false, message: "You can't change the capabilities of someone who holds your own role." };
+  }
+  // Capability overrides are access too — an Admin must not be able to strip a
+  // Superadmin's abilities as a way around the rules above.
+  if ((await roleOf(userId)) === "superadmin" && me.profile.role !== "superadmin") {
+    return { ok: false, message: "Only a Superadmin can change a Superadmin's capabilities." };
   }
 
   const supabase = await createClient();
@@ -344,6 +374,9 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
   }
   if ((await roleOf(userId)) === "superadmin") {
     return { ok: false, message: "A Superadmin account can't be deleted." };
+  }
+  if (await isPeer(me.profile.id, me.profile.role, userId)) {
+    return { ok: false, message: "You can't delete an account that holds your own role." };
   }
 
   const admin = createServiceClient();

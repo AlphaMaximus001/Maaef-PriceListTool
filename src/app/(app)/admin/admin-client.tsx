@@ -168,13 +168,19 @@ export function AdminClient({
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
                     Capabilities <InfoTip k="admin.capabilities" />
+                    <InfoTip k="admin.peers" />
                     {canDelete && <InfoTip k="admin.superadmin" />}
                   </span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {users.map((user) => {
+                // Peers can't change each other's access: same role, different
+                // person. Locked rows also cover any Superadmin row.
+                const isPeer = user.id !== currentUserId && user.role === currentUserRole;
+                const locked = isPeer || user.role === "superadmin";
+                return (
                 <TableRow key={user.id} className={!user.approved ? "bg-maaef-blush/30" : undefined}>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
@@ -192,7 +198,7 @@ export function AdminClient({
                     {user.approved ? (
                       <div className="flex items-center gap-2">
                         <Badge variant="success">Approved</Badge>
-                        {user.id !== currentUserId && user.role !== "superadmin" && (
+                        {user.id !== currentUserId && !locked && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -210,7 +216,7 @@ export function AdminClient({
                         <Button
                           size="sm"
                           className="h-7"
-                          disabled={pending}
+                          disabled={pending || locked}
                           onClick={() => approve(user.id, true)}
                         >
                           Approve
@@ -221,8 +227,8 @@ export function AdminClient({
                   <TableCell>
                     <Select
                       defaultValue={user.role}
-                      // A Superadmin's role is fixed — mutual protection.
-                      disabled={pending || user.role === "superadmin"}
+                      // Locked for Superadmins and for same-role peers.
+                      disabled={pending || locked}
                       onValueChange={(role) => {
                         const fd = new FormData();
                         fd.set("user_id", user.id);
@@ -248,7 +254,7 @@ export function AdminClient({
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={user.active}
-                        disabled={pending || user.id === currentUserId || user.role === "superadmin"}
+                        disabled={pending || user.id === currentUserId || locked}
                         onCheckedChange={(active) => {
                           const fd = new FormData();
                           fd.set("user_id", user.id);
@@ -263,20 +269,26 @@ export function AdminClient({
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {isPeer && (
+                        <Badge variant="muted" title="Same role as you — their access is read-only to you">
+                          Peer
+                        </Badge>
+                      )}
                       <CapabilitiesDialog
                         user={user}
                         capabilities={capabilities}
-                        disabled={pending}
+                        disabled={pending || locked}
                       />
                       {/* Deleting is Superadmin-only, and never applies to a
-                          Superadmin or to yourself. */}
-                      {canDelete && user.id !== currentUserId && user.role !== "superadmin" && (
+                          Superadmin, a same-role peer, or yourself. */}
+                      {canDelete && user.id !== currentUserId && !locked && (
                         <DeleteUserDialog user={user} />
                       )}
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
