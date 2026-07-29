@@ -11,9 +11,10 @@ import {
   setApproved,
   setEmployeeName,
   setCapabilityGrant,
+  deleteUser,
   type ActionResult,
 } from "./actions";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,7 +78,7 @@ export type AdminUser = {
   effective: Record<Capability, EffectiveCap>;
 };
 
-const ROLES: AppRole[] = ["admin", "editor", "viewer"];
+const ROLES: AppRole[] = ["superadmin", "admin", "editor", "viewer"];
 
 function notify(result: ActionResult) {
   if (result.ok) toast.success(result.message);
@@ -89,12 +90,19 @@ export function AdminClient({
   users,
   capabilities,
   currentUserId,
+  currentUserRole,
+  canDelete,
 }: {
   users: AdminUser[];
   capabilities: CapabilityMeta[];
   currentUserId: string;
+  currentUserRole: AppRole;
+  canDelete: boolean;
 }) {
   const [pending, startTransition] = React.useTransition();
+  const iAmSuper = currentUserRole === "superadmin";
+  // Only a Superadmin can hand out the Superadmin role.
+  const roleOptions = ROLES.filter((r) => r !== "superadmin" || iAmSuper);
 
   const approve = (userId: string, approved: boolean) => {
     const fd = new FormData();
@@ -132,7 +140,7 @@ export function AdminClient({
             source of truth for access.
           </p>
         </div>
-        <CreateUserDialog />
+        <CreateUserDialog roleOptions={roleOptions} />
       </div>
 
       <Card>
@@ -158,7 +166,10 @@ export function AdminClient({
                   <span className="inline-flex items-center gap-1">Active <InfoTip k="admin.active" /></span>
                 </TableHead>
                 <TableHead className="text-right">
-                  <span className="inline-flex items-center gap-1">Capabilities <InfoTip k="admin.capabilities" /></span>
+                  <span className="inline-flex items-center gap-1">
+                    Capabilities <InfoTip k="admin.capabilities" />
+                    {canDelete && <InfoTip k="admin.superadmin" />}
+                  </span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -181,7 +192,7 @@ export function AdminClient({
                     {user.approved ? (
                       <div className="flex items-center gap-2">
                         <Badge variant="success">Approved</Badge>
-                        {user.id !== currentUserId && (
+                        {user.id !== currentUserId && user.role !== "superadmin" && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -210,7 +221,8 @@ export function AdminClient({
                   <TableCell>
                     <Select
                       defaultValue={user.role}
-                      disabled={pending}
+                      // A Superadmin's role is fixed — mutual protection.
+                      disabled={pending || user.role === "superadmin"}
                       onValueChange={(role) => {
                         const fd = new FormData();
                         fd.set("user_id", user.id);
@@ -220,11 +232,11 @@ export function AdminClient({
                         });
                       }}
                     >
-                      <SelectTrigger className="w-28 capitalize">
+                      <SelectTrigger className="w-32 capitalize">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {ROLES.map((r) => (
+                        {roleOptions.map((r) => (
                           <SelectItem key={r} value={r} className="capitalize">
                             {r}
                           </SelectItem>
@@ -236,7 +248,7 @@ export function AdminClient({
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={user.active}
-                        disabled={pending || user.id === currentUserId}
+                        disabled={pending || user.id === currentUserId || user.role === "superadmin"}
                         onCheckedChange={(active) => {
                           const fd = new FormData();
                           fd.set("user_id", user.id);
@@ -250,11 +262,18 @@ export function AdminClient({
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <CapabilitiesDialog
-                      user={user}
-                      capabilities={capabilities}
-                      disabled={pending}
-                    />
+                    <div className="flex items-center justify-end gap-1">
+                      <CapabilitiesDialog
+                        user={user}
+                        capabilities={capabilities}
+                        disabled={pending}
+                      />
+                      {/* Deleting is Superadmin-only, and never applies to a
+                          Superadmin or to yourself. */}
+                      {canDelete && user.id !== currentUserId && user.role !== "superadmin" && (
+                        <DeleteUserDialog user={user} />
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -266,7 +285,80 @@ export function AdminClient({
   );
 }
 
-function CreateUserDialog() {
+/**
+ * Permanent account deletion. Irreversible, so it asks for the email to be
+ * typed out before the button arms — the same bar a bank app sets for closing
+ * an account. Superadmin-only; the row never renders it for a Superadmin.
+ */
+function DeleteUserDialog({ user }: { user: AdminUser }) {
+  const [open, setOpen] = React.useState(false);
+  const [typed, setTyped] = React.useState("");
+  const [pending, startTransition] = React.useTransition();
+  const armed = typed.trim().toLowerCase() === user.email.toLowerCase();
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setTyped("");
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive"
+          title="Delete this account"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete {user.fullName || user.email}?</DialogTitle>
+          <DialogDescription>
+            This permanently removes the account and its sign-in. It cannot be undone.
+            Their past work — price edits, flags, and log entries — is kept for the record.
+            To keep the account but block access, use the Active switch instead.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 py-4">
+          <Label htmlFor={`del-${user.id}`}>
+            Type <span className="font-mono font-semibold">{user.email}</span> to confirm
+          </Label>
+          <Input
+            id={`del-${user.id}`}
+            value={typed}
+            autoComplete="off"
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={user.email}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={!armed || pending}
+            onClick={() =>
+              startTransition(async () => {
+                const r = notify(await deleteUser(user.id));
+                if (r.ok) setOpen(false);
+              })
+            }
+          >
+            <Trash2 className="h-4 w-4" />
+            {pending ? "Deleting…" : "Delete permanently"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateUserDialog({ roleOptions }: { roleOptions: AppRole[] }) {
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
 
@@ -322,7 +414,7 @@ function CreateUserDialog() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLES.map((r) => (
+                  {roleOptions.map((r) => (
                     <SelectItem key={r} value={r} className="capitalize">
                       {r}
                     </SelectItem>

@@ -13,10 +13,12 @@ export const CAPABILITIES = [
   "export_pdf",
   "manage_users",
   "manage_documents",
+  "delete_users",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
-export type AppRole = "admin" | "editor" | "viewer";
+/** Superadmin = admin + the ability to permanently delete accounts. */
+export type AppRole = "superadmin" | "admin" | "editor" | "viewer";
 
 export type Profile = {
   id: string;

@@ -126,7 +126,13 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <AdminClient users={users} capabilities={capList} currentUserId={session.profile.id} />
+      <AdminClient
+        users={users}
+        capabilities={capList}
+        currentUserId={session.profile.id}
+        currentUserRole={session.profile.role}
+        canDelete={session.can.delete_users}
+      />
       <TeamsAdmin teams={teams} people={people} />
       <PdfCodeLookup />
       {session.can.edit_specs && (

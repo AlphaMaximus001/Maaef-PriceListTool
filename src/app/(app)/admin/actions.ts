@@ -11,14 +11,21 @@ import {
 
 export type ActionResult = { ok: boolean; message: string };
 
-const ROLES: AppRole[] = ["admin", "editor", "viewer"];
+const ROLES: AppRole[] = ["superadmin", "admin", "editor", "viewer"];
+
+/** The target account's role, for the Superadmin protection checks below. */
+async function roleOf(userId: string): Promise<AppRole | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+  return (data?.role as AppRole | undefined) ?? null;
+}
 
 /**
  * Create a user. Requires the service-role key (auth admin API). The DB
  * trigger creates the matching profile; we then set role + name.
  */
 export async function createUser(formData: FormData): Promise<ActionResult> {
-  await requireCapability("manage_users");
+  const me = await requireCapability("manage_users");
 
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
@@ -30,6 +37,11 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   if (!email || !password) return { ok: false, message: "Email and password are required." };
   if (password.length < 8) return { ok: false, message: "Password must be at least 8 characters." };
   if (!ROLES.includes(role)) return { ok: false, message: "Invalid role." };
+  // This path writes the role with the service key (which bypasses the DB's
+  // promotion guard), so the check has to happen here.
+  if (role === "superadmin" && me.profile.role !== "superadmin") {
+    return { ok: false, message: "Only a Superadmin can create a Superadmin." };
+  }
 
   const admin = createServiceClient();
   if (!admin) {
@@ -91,8 +103,16 @@ export async function setRole(formData: FormData): Promise<ActionResult> {
   const userId = String(formData.get("user_id") || "");
   const role = String(formData.get("role") || "") as AppRole;
   if (!ROLES.includes(role)) return { ok: false, message: "Invalid role." };
-  if (userId === me.profile.id && role !== "admin") {
+  if (userId === me.profile.id && role !== "admin" && role !== "superadmin") {
     return { ok: false, message: "You can't demote your own admin account here." };
+  }
+  // Superadmins are mutually protected: nobody demotes one, and only a
+  // Superadmin can appoint another. (The DB enforces both as well.)
+  if ((await roleOf(userId)) === "superadmin" && role !== "superadmin") {
+    return { ok: false, message: "A Superadmin can't be demoted — not by another Superadmin, and not by themselves." };
+  }
+  if (role === "superadmin" && me.profile.role !== "superadmin") {
+    return { ok: false, message: "Only a Superadmin can grant the Superadmin role." };
   }
 
   const supabase = await createClient();
@@ -111,6 +131,9 @@ export async function setApproved(formData: FormData): Promise<ActionResult> {
   const approved = String(formData.get("approved") || "") === "true";
   if (userId === me.profile.id && !approved) {
     return { ok: false, message: "You can't revoke your own access." };
+  }
+  if (!approved && (await roleOf(userId)) === "superadmin") {
+    return { ok: false, message: "A Superadmin's access can't be revoked." };
   }
 
   const supabase = await createClient();
@@ -246,6 +269,9 @@ export async function setActive(formData: FormData): Promise<ActionResult> {
   if (userId === me.profile.id && !active) {
     return { ok: false, message: "You can't deactivate your own account." };
   }
+  if (!active && (await roleOf(userId)) === "superadmin") {
+    return { ok: false, message: "A Superadmin can't be deactivated." };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").update({ active }).eq("id", userId);
@@ -298,4 +324,40 @@ export async function setCapabilityGrant(formData: FormData): Promise<ActionResu
 
   revalidatePath("/admin");
   return { ok: true, message: "Capability updated." };
+}
+
+/**
+ * Permanently delete a user account — Superadmin only.
+ *
+ * Removes the sign-in from auth, which cascades to the profile. A Superadmin
+ * can never be deleted (not by another Superadmin, not by themselves); the DB
+ * has a matching trigger, so this check is the friendly message, not the fence.
+ * Work the person authored (edits, flags, logs) is retained — those rows keep
+ * their reference and simply show no actor.
+ */
+export async function deleteUser(userId: string): Promise<ActionResult> {
+  const me = await requireCapability("delete_users");
+
+  if (!userId) return { ok: false, message: "Missing user." };
+  if (userId === me.profile.id) {
+    return { ok: false, message: "You can't delete your own account." };
+  }
+  if ((await roleOf(userId)) === "superadmin") {
+    return { ok: false, message: "A Superadmin account can't be deleted." };
+  }
+
+  const admin = createServiceClient();
+  if (!admin) {
+    return {
+      ok: false,
+      message:
+        "SUPABASE_SERVICE_ROLE_KEY is not configured — required to delete users. Set it in the environment.",
+    };
+  }
+
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { ok: false, message: error.message };
+
+  revalidatePath("/admin");
+  return { ok: true, message: "Account deleted." };
 }

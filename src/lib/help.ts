@@ -229,7 +229,12 @@ export const HELP = {
   "admin.role": {
     title: "Role",
     body:
-      "The permission baseline. Viewer: look, don't touch. Editor: edit prices, bulk edit, upload lists, confirm matches, export PDFs — but no cost visibility and no user management. Admin: everything. Individual abilities can still be granted or denied per person on top of the role.",
+      "The permission baseline. Viewer: look, don't touch. Editor: edit prices, bulk edit, upload lists, confirm matches, export PDFs — but no cost visibility and no user management. Admin: everything above plus this page. Superadmin: an Admin who can also permanently delete accounts. Individual abilities can still be granted or denied per person on top of the role.",
+  },
+  "admin.superadmin": {
+    title: "Superadmin & deleting accounts",
+    body:
+      "Only a Superadmin can permanently delete a user — the trash icon appears for them alone. Superadmins protect each other: a Superadmin account can't be deleted, demoted, deactivated, or revoked by anyone, including another Superadmin and themselves. Only a Superadmin can appoint another Superadmin. To remove one, an owner has to change the role directly in the database. For everyday cases prefer the Active switch: it blocks sign-in but keeps the person's history intact. Deleting removes the account and its sign-in for good; the work they did (price edits, flags, log entries) stays on the record.",
   },
   "admin.active": {
     title: "Active",
