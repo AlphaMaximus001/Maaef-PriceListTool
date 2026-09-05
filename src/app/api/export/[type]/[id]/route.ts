@@ -67,14 +67,21 @@ export async function GET(
     // Deliberately does NOT record a PDF code — that code is stamped on printed
     // pages, and counting a spreadsheet would skew each employee's PDF counter.
     if (asXlsx) {
-      const buf = buildCatalogueWorkbook(catItems, currentList.name);
-      return new NextResponse(new Uint8Array(buf), {
-        headers: {
-          "Content-Type": XLSX_CONTENT_TYPE,
-          "Content-Disposition": `attachment; filename="maaef-catalogue-${slug(currentList.name)}.xlsx"`,
-          "Cache-Control": "no-store",
-        },
-      });
+      try {
+        const buf = buildCatalogueWorkbook(catItems, currentList.name);
+        return new NextResponse(new Uint8Array(buf), {
+          headers: {
+            "Content-Type": XLSX_CONTENT_TYPE,
+            "Content-Disposition": `attachment; filename="maaef-catalogue-${slug(currentList.name)}.xlsx"`,
+            "Cache-Control": "no-store",
+          },
+        });
+      } catch (err) {
+        return new NextResponse(
+          `Excel export failed: ${err instanceof Error ? err.message : String(err)}`,
+          { status: 500 },
+        );
+      }
     }
 
     // Traceability code: the employee's fixed ID + a per-employee PDF counter,
@@ -184,14 +191,21 @@ export async function GET(
 
   // Spreadsheet flavour of a plain list — no branding, no employee footer.
   if (asXlsx) {
-    const buf = buildListWorkbook(items, title, showIntel);
-    return new NextResponse(new Uint8Array(buf), {
-      headers: {
-        "Content-Type": XLSX_CONTENT_TYPE,
-        "Content-Disposition": `attachment; filename="maaef-${slug(title)}.xlsx"`,
-        "Cache-Control": "no-store",
-      },
-    });
+    try {
+      const buf = buildListWorkbook(items, title, showIntel);
+      return new NextResponse(new Uint8Array(buf), {
+        headers: {
+          "Content-Type": XLSX_CONTENT_TYPE,
+          "Content-Disposition": `attachment; filename="maaef-${slug(title)}.xlsx"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    } catch (err) {
+      return new NextResponse(
+        `Excel export failed: ${err instanceof Error ? err.message : String(err)}`,
+        { status: 500 },
+      );
+    }
   }
 
   // Employee footer — from the account generating the PDF.

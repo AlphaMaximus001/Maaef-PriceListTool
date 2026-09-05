@@ -22,13 +22,30 @@ function autoFit(rows: SheetRow[], headers: string[]) {
   });
 }
 
+/**
+ * Excel refuses a sheet name containing : \ / ? * [ ] — and SheetJS throws
+ * rather than cleaning it up. List names routinely carry a date like
+ * "Original — inventory 12/7/2026", so sanitise before appending. Also capped
+ * at Excel's 31-character limit, with a fallback for a name that cleans away
+ * to nothing.
+ */
+export function safeSheetName(name: string): string {
+  const cleaned = (name ?? "")
+    .replace(/[\\/?*[\]:]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 31)
+    .trim();
+  return cleaned || "Price list";
+}
+
 function toWorkbook(rows: SheetRow[], headers: string[], sheetName: string): Buffer {
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
   ws["!cols"] = autoFit(rows, headers);
   // Freeze the header row so it stays put while scrolling a long list.
   ws["!freeze"] = { xSplit: "0", ySplit: "1", topLeftCell: "A2", activePane: "bottomLeft", state: "frozen" };
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31) || "Price list");
+  XLSX.utils.book_append_sheet(wb, ws, safeSheetName(sheetName));
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }
 
