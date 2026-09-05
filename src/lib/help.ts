@@ -126,6 +126,11 @@ export const HELP = {
     body:
       "Maaef's internal cost floor per product — what it costs you, not what clients pay. Only people with the view-cost permission can see this column or the numbers in it; it never appears in exports, PDFs, or to Viewers. The undercut guard uses it to stop prices being set below cost.",
   },
+  "mylist.download": {
+    title: "PDF or Excel",
+    body:
+      "Download asks which format you want. PDF is the branded booklet — fixed cover pages, the calculated Category Index, and the priced catalogue pages — ready to print or send to a client, and you can Preview it in a new tab first. Excel gives you the same rows and the same order as a plain spreadsheet (Category, S.No, Item, Pages/Leaves, Rate) with no branding, so you can sort, filter, and paste it into your own sheets. Both follow the version you're viewing and show selling prices only — never cost. If you can see MUSP & MP, the toggle adds those columns to whichever format you pick; leave it off for anything client-facing.",
+  },
   "mylist.catalogue": {
     title: "Catalogue PDF",
     body:

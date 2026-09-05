@@ -131,8 +131,8 @@ export default async function MyListPage() {
         </div>
         {can.export_pdf && (
           <div className="flex items-center gap-1.5">
-            <ExportPdfButton href="/api/export/catalogue/list" filename="maaef-catalogue.pdf" />
-            <InfoTip k="mylist.catalogue" side="bottom" />
+            <ExportPdfButton href="/api/export/catalogue/list" filename="maaef-catalogue" />
+            <InfoTip k="mylist.download" side="bottom" />
           </div>
         )}
       </div>

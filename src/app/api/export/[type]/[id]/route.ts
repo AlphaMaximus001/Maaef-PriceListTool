@@ -6,6 +6,11 @@ import { buildListHtml, buildFooterTemplate, type PdfItem, type PdfFooter } from
 import { renderPdf } from "@/lib/pdf/render";
 import { buildCatalogueHtml, type CatalogueItem } from "@/lib/pdf/catalogue";
 import { renderCataloguePdf } from "@/lib/pdf/catalogue-render";
+import {
+  buildCatalogueWorkbook,
+  buildListWorkbook,
+  XLSX_CONTENT_TYPE,
+} from "@/lib/xlsx-export";
 
 // Force Node runtime (Playwright needs it) and never cache a generated PDF.
 export const runtime = "nodejs";
@@ -26,6 +31,9 @@ export async function GET(
 
   const { type, id } = await params;
   const supabase = await createClient();
+
+  // PDF unless the caller asked for the spreadsheet.
+  const asXlsx = new URL(req.url).searchParams.get("format") === "xlsx";
 
   // ── Branded catalogue: fixed cover pages + computed index + priced pages ────
   if (type === "catalogue") {
@@ -54,6 +62,20 @@ export async function GET(
       price: Number(p.price),
       currency: p.currency,
     }));
+
+    // Spreadsheet flavour: same rows and order, no cover pages or branding.
+    // Deliberately does NOT record a PDF code — that code is stamped on printed
+    // pages, and counting a spreadsheet would skew each employee's PDF counter.
+    if (asXlsx) {
+      const buf = buildCatalogueWorkbook(catItems, currentList.name);
+      return new NextResponse(new Uint8Array(buf), {
+        headers: {
+          "Content-Type": XLSX_CONTENT_TYPE,
+          "Content-Disposition": `attachment; filename="maaef-catalogue-${slug(currentList.name)}.xlsx"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    }
 
     // Traceability code: the employee's fixed ID + a per-employee PDF counter,
     // derived and recorded server-side (see 0023_employee_id_scheme.sql).
@@ -158,6 +180,18 @@ export async function GET(
     }));
   } else {
     return new NextResponse("Unknown export type", { status: 404 });
+  }
+
+  // Spreadsheet flavour of a plain list — no branding, no employee footer.
+  if (asXlsx) {
+    const buf = buildListWorkbook(items, title, showIntel);
+    return new NextResponse(new Uint8Array(buf), {
+      headers: {
+        "Content-Type": XLSX_CONTENT_TYPE,
+        "Content-Disposition": `attachment; filename="maaef-${slug(title)}.xlsx"`,
+        "Cache-Control": "no-store",
+      },
+    });
   }
 
   // Employee footer — from the account generating the PDF.

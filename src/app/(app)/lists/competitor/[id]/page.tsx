@@ -62,7 +62,7 @@ export default async function CompetitorListPage({
           </p>
         </div>
         {can.export_pdf && (
-          <ExportPdfButton href={`/api/export/competitor/${id}`} filename="maaef-competitor-list.pdf" />
+          <ExportPdfButton href={`/api/export/competitor/${id}`} filename="maaef-competitor-list" />
         )}
       </div>
 
