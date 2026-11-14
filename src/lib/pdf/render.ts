@@ -1,5 +1,15 @@
 import "server-only";
-import { chromium } from "playwright";
+import { chromium, type Browser } from "playwright";
+
+/** Launch Chromium the same way every renderer here does. Caller must close it. */
+export function launchBrowser(): Promise<Browser> {
+  return chromium.launch({
+    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    ...(process.env.CHROMIUM_EXECUTABLE_PATH
+      ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH }
+      : {}),
+  });
+}
 
 /**
  * Render HTML to an A5 PDF with Playwright/Chromium. Runs in the persistent
@@ -9,48 +19,15 @@ import { chromium } from "playwright";
  * In this repo's environments Chromium is found via PLAYWRIGHT_BROWSERS_PATH;
  * the Dockerfile installs it for production. An optional explicit path override
  * is honored for images that pin a non-default location.
+ *
+ * (The catalogue has its own measure → layout → print pipeline in
+ * catalogue-render.ts; this is the plain list export.)
  */
-/**
- * Render HTML to a PDF at an exact page size with no margins — the HTML owns
- * its own page-sized sections and page breaks. Used by the catalogue, whose
- * pages must line up 1:1 with the fixed cover pages it's merged with.
- */
-export async function renderSizedPdf(
-  html: string,
-  width: string,
-  height: string,
-): Promise<Buffer> {
-  const browser = await chromium.launch({
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
-    ...(process.env.CHROMIUM_EXECUTABLE_PATH
-      ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH }
-      : {}),
-  });
-  try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle" });
-    const pdf = await page.pdf({
-      width,
-      height,
-      printBackground: true,
-      margin: { top: "0", right: "0", bottom: "0", left: "0" },
-    });
-    return pdf;
-  } finally {
-    await browser.close();
-  }
-}
-
 export async function renderPdf(
   html: string,
   opts?: { footerTemplate?: string },
 ): Promise<Buffer> {
-  const browser = await chromium.launch({
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
-    ...(process.env.CHROMIUM_EXECUTABLE_PATH
-      ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH }
-      : {}),
-  });
+  const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle" });

@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentList, getAllListProducts, PAGE_SIZE } from "@/lib/lists";
 import { buildListHtml, buildFooterTemplate, type PdfItem, type PdfFooter } from "@/lib/pdf/template";
 import { renderPdf } from "@/lib/pdf/render";
-import { buildCatalogueHtml, type CatalogueItem } from "@/lib/pdf/catalogue";
+import { type CatalogueItem } from "@/lib/pdf/catalogue";
 import { renderCataloguePdf } from "@/lib/pdf/catalogue-render";
+import { fixSpelling, normalizeUnit } from "@/lib/catalogue-text";
 import {
   buildCatalogueWorkbook,
   buildListWorkbook,
@@ -55,10 +56,12 @@ export async function GET(
     const serial = (sku: string) => { const m = /C\d+-(\d+)/i.exec(sku); return m ? parseInt(m[1], 10) : 1e9; };
     products.sort((a, b) => catOrder(a.sku) - catOrder(b.sku) || serial(a.sku) - serial(b.sku) || a.product_name.localeCompare(b.product_name));
 
+    // Printed wording is cleaned up here, at export time (unit vocabulary, spelling) —
+    // the stored list, and the locked original in particular, is never rewritten.
     const catItems: CatalogueItem[] = products.map((p) => ({
-      name: p.display_name || p.product_name,
-      category: p.category ?? "Other",
-      pagesLeaves: p.specs?.pages || p.specs?.unit || "",
+      name: fixSpelling(p.display_name || p.product_name),
+      category: fixSpelling(p.category ?? "Other"),
+      pagesLeaves: normalizeUnit(p.specs?.pages || p.specs?.unit || ""),
       price: Number(p.price),
       currency: p.currency,
     }));
@@ -93,7 +96,7 @@ export async function GET(
     const code = (codeData as string) ?? "";
 
     try {
-      const pdf = await renderCataloguePdf(buildCatalogueHtml(catItems, code));
+      const pdf = await renderCataloguePdf(catItems, code);
       return new NextResponse(new Uint8Array(pdf), {
         headers: {
           "Content-Type": "application/pdf",
