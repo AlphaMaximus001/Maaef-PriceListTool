@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getSession } from "@/lib/capabilities";
+import { displayName } from "@/lib/names";
 
 /** The origin the request actually came from (works on Render behind a proxy). */
 async function requestOrigin(): Promise<string | null> {
@@ -67,6 +68,9 @@ export async function signUp(
   if (!firstName) {
     return { error: "Enter your first name." };
   }
+  if (!surname) {
+    return { error: "Enter your surname. If you don't have one, enter your first name again." };
+  }
   if (!email || !password) {
     return { error: "Enter your email and a password." };
   }
@@ -74,7 +78,7 @@ export async function signUp(
     return { error: "Use at least 8 characters for your password." };
   }
 
-  const fullName = [firstName, surname].filter(Boolean).join(" ");
+  const fullName = displayName(firstName, surname);
   const supabase = await createClient();
   // Point the confirmation link back at THIS deployment (not Supabase's Site
   // URL default of localhost). The URL must also be in Supabase's Redirect URL

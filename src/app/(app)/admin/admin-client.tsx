@@ -80,6 +80,16 @@ export type AdminUser = {
 
 const ROLES: AppRole[] = ["superadmin", "admin", "editor", "viewer"];
 
+/**
+ * Every account needs a real first name and surname — they drive the PDF ID.
+ * Older accounts that signed up before names were collected got their email
+ * address as a first name (e.g. "pravek2321@gmail.com" → a 14-letter "name").
+ */
+function nameNeedsFix(u: AdminUser): boolean {
+  const bad = (s: string | null) => !s || !s.trim() || s.includes("@");
+  return bad(u.firstName) || bad(u.surname);
+}
+
 function notify(result: ActionResult) {
   if (result.ok) toast.success(result.message);
   else toast.error(result.message);
@@ -114,6 +124,7 @@ export function AdminClient({
   };
 
   const pendingUsers = users.filter((u) => !u.approved);
+  const unnamedUsers = users.filter(nameNeedsFix);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -124,6 +135,19 @@ export function AdminClient({
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
             These people signed up and can see nothing until you grant access below.
+          </p>
+        </div>
+      )}
+
+      {unnamedUsers.length > 0 && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+          <div className="font-medium">
+            {unnamedUsers.length} account{unnamedUsers.length > 1 ? "s need" : " needs"} a proper first name and surname
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {unnamedUsers.map((u) => u.email).join(", ")} — the name on file is an email address, so
+            their PDF ID is wrong. Click the pencil next to each name to set it (no surname? enter the
+            first name again).
           </p>
         </div>
       )}
@@ -191,7 +215,9 @@ export function AdminClient({
                     <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                       <span>PDF ID</span>
                       <Badge variant="muted" className="font-mono">{user.employeeCode}</Badge>
-                      {!user.surname && <span className="text-amber-600">· add surname</span>}
+                      {nameNeedsFix(user) && (
+                        <span className="font-medium text-amber-600">· fix name — use the pencil</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -408,7 +434,8 @@ function CreateUserDialog({ roleOptions }: { roleOptions: AppRole[] }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="surname">Surname</Label>
-                <Input id="surname" name="surname" placeholder="Rao" />
+                <Input id="surname" name="surname" placeholder="Rao" required />
+                <p className="text-xs text-muted-foreground">No surname? Enter the first name again.</p>
               </div>
             </div>
             <div className="space-y-2">
@@ -481,7 +508,8 @@ function EditNameDialog({ user }: { user: AdminUser }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor={`sn-${user.id}`}>Surname</Label>
-              <Input id={`sn-${user.id}`} name="surname" defaultValue={user.surname ?? ""} />
+              <Input id={`sn-${user.id}`} name="surname" defaultValue={user.surname ?? ""} required />
+              <p className="text-xs text-muted-foreground">No surname? Enter the first name again.</p>
             </div>
           </div>
           <DialogFooter>

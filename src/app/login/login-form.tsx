@@ -79,9 +79,12 @@ export function LoginForm({ next }: { next: string }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="su-surname">Surname</Label>
-                <Input id="su-surname" name="surname" type="text" autoComplete="family-name" placeholder="Rao" />
+                <Input id="su-surname" name="surname" type="text" autoComplete="family-name" placeholder="Rao" required />
               </div>
             </div>
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Both are required. No surname? Enter your first name again.
+            </p>
             <div className="space-y-2">
               <Label htmlFor="su-email">Email</Label>
               <Input id="su-email" name="email" type="email" autoComplete="email" placeholder="you@maaef.com" required />

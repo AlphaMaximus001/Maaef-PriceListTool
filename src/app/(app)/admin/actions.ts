@@ -8,6 +8,7 @@ import {
   type AppRole,
   type Capability,
 } from "@/lib/capabilities";
+import { displayName } from "@/lib/names";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -47,6 +48,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
   const role = String(formData.get("role") || "viewer") as AppRole;
 
   if (!firstName) return { ok: false, message: "First name is required." };
+  if (!surname) return { ok: false, message: "Surname is required. No surname? Enter the first name again." };
   if (!email || !password) return { ok: false, message: "Email and password are required." };
   if (password.length < 8) return { ok: false, message: "Password must be at least 8 characters." };
   if (!ROLES.includes(role)) return { ok: false, message: "Invalid role." };
@@ -65,7 +67,7 @@ export async function createUser(formData: FormData): Promise<ActionResult> {
     };
   }
 
-  const fullName = [firstName, surname].filter(Boolean).join(" ");
+  const fullName = displayName(firstName, surname);
   // first_name/surname/onboard_no are set by the DB trigger from this metadata.
   const { data, error } = await admin.auth.admin.createUser({
     email,
@@ -98,11 +100,12 @@ export async function setEmployeeName(formData: FormData): Promise<ActionResult>
   const firstName = String(formData.get("first_name") || "").trim();
   const surname = String(formData.get("surname") || "").trim();
   if (!firstName) return { ok: false, message: "First name is required." };
+  if (!surname) return { ok: false, message: "Surname is required. No surname? Enter the first name again." };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("profiles")
-    .update({ first_name: firstName, surname: surname || null, full_name: [firstName, surname].filter(Boolean).join(" ") })
+    .update({ first_name: firstName, surname, full_name: displayName(firstName, surname) })
     .eq("id", userId);
   if (error) return { ok: false, message: error.message };
 
