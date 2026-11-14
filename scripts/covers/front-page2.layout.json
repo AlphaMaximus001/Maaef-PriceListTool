@@ -1,0 +1,259 @@
+{
+ "elements": [
+  {
+   "font": "anton",
+   "text": "PRICE LIST",
+   "size": 62.86,
+   "x": 33,
+   "y": 368,
+   "fill": "#ffffff"
+  },
+  {
+   "font": "arimo",
+   "text": "FY 2026-27",
+   "size": 43.2,
+   "x": 270.9,
+   "y": 430,
+   "fill": "#ffffff",
+   "anchor": "end"
+  },
+  {
+   "font": "anton",
+   "text": "MAAEF ENTERPRISES",
+   "size": 82.59,
+   "x": 914,
+   "y": 229,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "inter",
+   "text": "For /",
+   "size": 52.49,
+   "x": 787,
+   "y": 520,
+   "fill": "#ffffff"
+  },
+  {
+   "font": "deva",
+   "text": "सेवा में",
+   "size": 55.48,
+   "x": 918,
+   "y": 520,
+   "fill": "#ffffff"
+  },
+  {
+   "font": "inter",
+   "text": ",",
+   "size": 52.49,
+   "x": 1062,
+   "y": 520,
+   "fill": "#ffffff"
+  },
+  {
+   "font": "anton",
+   "text": "PARSVNATH PLANET, T-5 1604",
+   "size": 32.74,
+   "x": 1222,
+   "y": 958,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "REGENCY ROAD, VIBHUTI KHAND",
+   "size": 32.74,
+   "x": 1222,
+   "y": 1002,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "GOMTI NAGAR, 226010 - U.P",
+   "size": 32.74,
+   "x": 1222,
+   "y": 1046,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "Office:",
+   "size": 52.37,
+   "x": 1027,
+   "y": 979,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "enterprise@maaef.in",
+   "size": 32.74,
+   "x": 1222,
+   "y": 1098,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "E-mail:",
+   "size": 43.94,
+   "x": 1027,
+   "y": 1098,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "mont",
+   "text": "+91-9628800057",
+   "size": 33.93,
+   "x": 1222,
+   "y": 1144,
+   "fill": "#ffffff"
+  },
+  {
+   "font": "mont",
+   "text": "0522-4590904",
+   "size": 33.93,
+   "x": 1222,
+   "y": 1186,
+   "fill": "#ffffff"
+  },
+  {
+   "font": "anton",
+   "text": "Phone:",
+   "size": 42.75,
+   "x": 1027,
+   "y": 1171.5,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "GST No :",
+   "size": 51.05,
+   "x": 1027,
+   "y": 1494,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "PAN No :",
+   "size": 51.03,
+   "x": 1027,
+   "y": 1557,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "UDYAM :",
+   "size": 51.83,
+   "x": 1027,
+   "y": 1620,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "09IEWPP0422P1ZJ",
+   "size": 40.29,
+   "x": 1222,
+   "y": 1488.5,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "IEWPP0422P",
+   "size": 40.29,
+   "x": 1222,
+   "y": 1551.5,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "anton",
+   "text": "UDYAM-UP-50-0220434",
+   "size": 40.29,
+   "x": 1222,
+   "y": 1614.5,
+   "fill": "#e0e0e0"
+  },
+  {
+   "font": "roboto",
+   "text": "Kindly scan",
+   "size": 40.32,
+   "x": 668.5,
+   "y": 1458.4,
+   "fill": "#ffffff",
+   "anchor": "end"
+  },
+  {
+   "font": "roboto",
+   "text": "QR code",
+   "size": 40.32,
+   "x": 667.9,
+   "y": 1509.9,
+   "fill": "#ffffff",
+   "anchor": "end"
+  },
+  {
+   "font": "roboto",
+   "text": "for",
+   "size": 40.32,
+   "x": 667.9,
+   "y": 1558.0,
+   "fill": "#ffffff",
+   "anchor": "end"
+  },
+  {
+   "font": "inter",
+   "text": "DETAILS",
+   "size": 27.97,
+   "x": 668.2,
+   "y": 1595.2,
+   "fill": "#ffffff",
+   "anchor": "end"
+  },
+  {
+   "font": "narrow",
+   "text": "https://www.linkedin.com/company/maaef",
+   "size": 43.06,
+   "x": 1697.5,
+   "y": 1917.9,
+   "fill": "#ffffff",
+   "anchor": "end"
+  },
+  {
+   "font": "narrow",
+   "text": "http://www.maaef.com/enterprise",
+   "size": 42.81,
+   "x": 1699.3,
+   "y": 1995.9,
+   "fill": "#ffffff",
+   "anchor": "end"
+  },
+  {
+   "font": "narrow",
+   "text": "https://x.com/maaefltd",
+   "size": 41.63,
+   "x": 1699.0,
+   "y": 2075.9,
+   "fill": "#ffffff",
+   "anchor": "end"
+  }
+ ],
+ "icons": [
+  {
+   "name": "linkedin",
+   "x": 999,
+   "y": 1878,
+   "w": 51,
+   "h": 51
+  },
+  {
+   "name": "globe",
+   "x": 1123,
+   "y": 1962,
+   "w": 47,
+   "h": 47
+  },
+  {
+   "name": "x",
+   "x": 1287,
+   "y": 2043,
+   "w": 40,
+   "h": 44
+  }
+ ]
+}
