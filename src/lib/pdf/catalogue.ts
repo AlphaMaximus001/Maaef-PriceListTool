@@ -231,10 +231,12 @@ const STYLES = `
   .idx-title .pg { margin-left: auto; font-size: 7pt; font-weight: 700; color: #8B0000; letter-spacing: 1pt; }
   .idx-cols { display: flex; gap: 14pt; align-items: flex-start; }
   .idx-col { flex: 1 1 0; min-width: 0; }
-  /* On real index pages the columns stretch to the footer so the space under
-     the last entry of each column can carry the watermark. */
-  .page .idx-cols { flex: 1 1 auto; align-items: stretch; }
-  .page .idx-col { display: flex; flex-direction: column; }
+  /* Real index pages: paired rows (left entry i beside right entry i, one
+     shared row height), then the leftover space as two watermarked panels. */
+  .idx-paired { flex: 1 1 auto; flex-direction: column; align-items: stretch; gap: 0; }
+  .idx-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14pt; }
+  .idx-voids { flex: 1 1 0; display: flex; gap: 14pt; min-height: 0; }
+  .idx-voids .void { flex: 1 1 0; }
   .idx-row { display: flex; align-items: center; gap: 5pt; padding: 2.3pt 0; border-bottom: .4pt solid #eee; }
   .idx-row .num { flex: 0 0 auto; font-size: 6.5pt; font-weight: 800; color: #8B0000; background: #f4e1e4; border-radius: 2pt; padding: 1.5pt 3pt; }
   .idx-row .cat { flex: 1 1 auto; min-width: 0; font-size: 7.2pt; line-height: 1.3; color: #222; overflow-wrap: break-word; }
@@ -396,33 +398,28 @@ export function layoutCatalogue(groups: Group[], m: Metrics): Layout {
   });
   if (cur.blocks.length) flush();
 
-  // Index: fill the left column, then the right, then a new page.
+  // Index: two columns split evenly (52 entries → 26 | 26) and laid out as
+  // PAIRED rows — entry i on the left sits beside entry i + half on the right,
+  // sharing one row height — so the two columns line up and end together.
+  // Each page takes as many entries as fit at that pairing.
   const IDX_AVAIL = m.idxAvail - 1.5;
+  const paired = (es: IndexEntry[]) => {
+    const half = Math.ceil(es.length / 2);
+    let h = 0;
+    for (let i = 0; i < half; i++) h += Math.max(es[i].h, es[half + i]?.h ?? 0);
+    return h;
+  };
   const indexPages: IndexEntry[][][] = [];
   const indexFree: number[][] = [];
-  let page: IndexEntry[][] = [[], []];
-  let free = [IDX_AVAIL, IDX_AVAIL];
-  let col = 0;
-  let colUsed = 0;
-  for (const e of index) {
-    if (colUsed > 0 && colUsed + e.h > IDX_AVAIL) {
-      col += 1;
-      colUsed = 0;
-      if (col > 1) {
-        indexPages.push(page);
-        indexFree.push(free);
-        page = [[], []];
-        free = [IDX_AVAIL, IDX_AVAIL];
-        col = 0;
-      }
-    }
-    page[col].push(e);
-    colUsed += e.h;
-    free[col] = Math.max(0, IDX_AVAIL - colUsed);
-  }
-  if (page[0].length) {
-    indexPages.push(page);
-    indexFree.push(free);
+  for (let start = 0; start < index.length; ) {
+    let k = 1;
+    while (start + k < index.length && paired(index.slice(start, start + k + 1)) <= IDX_AVAIL) k += 1;
+    const es = index.slice(start, start + k);
+    const half = Math.ceil(es.length / 2);
+    indexPages.push([es.slice(0, half), es.slice(half)]);
+    const left = Math.max(0, IDX_AVAIL - paired(es));
+    indexFree.push([left, left]);
+    start += k;
   }
 
   return { pages, index, indexPages, indexFree };
@@ -437,11 +434,14 @@ function pageRange(e: IndexEntry): string {
 function indexPagesHtml(indexPages: IndexEntry[][][], indexFree: number[][], code?: string): string {
   return indexPages
     .map((cols, pi) => {
-      const col = (entries: IndexEntry[], ci: number) =>
-        `<div class="idx-col">${entries.map((e) => idxRowHtml(e.n, e.category, pageRange(e))).join("")}` +
-        `${voidHtml(INDEX_COL_W, 2, indexFree[pi][ci])}</div>`;
+      const [left, right] = cols;
+      const cell = (e?: IndexEntry) => (e ? idxRowHtml(e.n, e.category, pageRange(e)) : `<div></div>`);
+      let grid = "";
+      for (let i = 0; i < left.length; i++) grid += cell(left[i]) + cell(right[i]);
+      const free = indexFree[pi][0];
       return `<section class="page">${indexHeadHtml()}
-        <div class="idx-cols">${col(cols[0], 0)}${col(cols[1], 1)}</div>
+        <div class="idx-cols idx-paired"><div class="idx-grid">${grid}</div>
+          <div class="idx-voids">${voidHtml(INDEX_COL_W, 2, free)}${voidHtml(INDEX_COL_W, 2, free)}</div></div>
         <div class="idx-foot"><span class="code">${codeTag(code)}</span><span>${PRICE_LIST_LABEL}</span></div>
       </section>`;
     })
