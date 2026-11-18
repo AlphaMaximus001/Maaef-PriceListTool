@@ -27,7 +27,8 @@ export type CatalogueItem = {
 export type Group = { category: string; items: CatalogueItem[] };
 type Row = { sno: number; name: string; pagesLeaves: string; price: number; h: number };
 type Block = { category: string; continued: boolean; rows: Row[] };
-export type Page = { number: number; blocks: Block[] };
+/** `free`: blank height (px) left under the last row — filled with the watermark. */
+export type Page = { number: number; blocks: Block[]; free: number };
 export type IndexEntry = { n: number; category: string; from: number; to: number; h: number };
 
 /** Heights (CSS px) measured in Chromium. */
@@ -39,7 +40,8 @@ export type Metrics = {
   idx: number[]; // per group's index entry
 };
 
-export type Layout = { pages: Page[]; index: IndexEntry[]; indexPages: IndexEntry[][][] };
+/** indexFree mirrors indexPages: blank height (px) under each index column. */
+export type Layout = { pages: Page[]; index: IndexEntry[]; indexPages: IndexEntry[][][]; indexFree: number[][] };
 
 /** Shown top-right of every priced page and on the index footer. */
 export const PRICE_LIST_LABEL = "PRICE LIST 2026-27";
@@ -100,6 +102,61 @@ export function fontFaceCss(regularWoff2: string, boldWoff2: string): string {
   );
 }
 
+/**
+ * Anti-tamper watermark for the blank space on a page (below the last row, and
+ * under the index columns). A printed list is posted to offices, so empty space
+ * must not be usable to hand-write extra items: it gets a diagonal hatch with a
+ * staggered "MAAEF" mark. It appears ONLY in blank space — never behind items.
+ *
+ * Drawn as inline SVG shapes, not a CSS background: Chromium rasterises tiled
+ * background images into a full-page bitmap per page (it took the PDF from
+ * ~1.5 MB to 10–18 MB). The mark is a fixed outline ("MAAEF" in Arial Bold),
+ * not text, so it never shows up when the PDF is searched or copied. Solid
+ * tints rather than opacity keep it vector.
+ *
+ * Design tile: 140×80 units, two marks per tile, hatch every 10 units (divides
+ * the tile, so tiles join seamlessly). It is scaled so whole tiles span the
+ * width — no mark is ever cut at the edge.
+ */
+const MARK_PATH =
+  "M-26.74 -1.25V5H-28.66V-5.32H-25.77L-23.92 0.45Q-23.8 0.94 -23.67 1.42Q-23.53 1.91 -23.41 2.39Q-23.33 2.11 -23.26 1.84Q-23.18 1.56 -23.1 1.29Q-23.03 1.01 -22.95 0.74L-21.05 -5.32H-18.17V5H-20.09V-1.25Q-20.09 -1.47 -20.07 -2.11Q-20.05 -2.75 -20.02 -3.5Q-20.27 -2.52 -20.47 -1.83Q-20.66 -1.15 -20.79 -0.76L-22.65 5H-24.19L-26.05 -0.76L-26.83 -3.5Q-26.79 -2.65 -26.76 -2.09Q-26.74 -1.53 -26.74 -1.25ZM-12.22 2.36 -13.13 5H-15.3L-11.53 -5.32H-8.98L-5.23 5H-7.37L-8.29 2.36ZM-10.26 -3.73Q-10.33 -3.44 -10.46 -3.03Q-10.59 -2.62 -10.65 -2.45L-11.74 0.74H-8.77L-9.88 -2.51Q-9.99 -2.81 -10.07 -3.12Q-10.16 -3.43 -10.26 -3.73ZM0.11 2.36 -0.8 5H-2.96L0.8 -5.32H3.35L7.1 5H4.96L4.05 2.36ZM2.08 -3.73Q2 -3.44 1.87 -3.03Q1.74 -2.62 1.68 -2.45L0.6 0.74H3.56L2.45 -2.51Q2.35 -2.81 2.26 -3.12Q2.17 -3.43 2.08 -3.73ZM18.42 3.33V5H10V-5.32H18.11V-3.65H12.16V-1.06H17.67V0.61H12.16V3.33ZM23.67 1.21V5H21.5V-5.32H29.11V-3.65H23.67V-0.46H28.95V1.21Z";
+const HATCH = "#eed9d9";
+const MARK = "#d9a8a8";
+/** Blank space shorter than this (CSS px, ≈7pt) is left plain — too thin to write in. */
+const MIN_VOID = 9.5;
+/** Inner width (CSS px) of a catalogue page, and of one index column. */
+const PAGE_INNER_W = ((419.25 - 32) * 4) / 3;
+const INDEX_COL_W = ((419.25 - 32 - 14) / 2) * 4 / 3;
+
+function watermarkSvg(width: number, across: number, height: number): string {
+  const k = width / across / 140; // design units → px
+  const tw = 140 * k;
+  const th = 80 * k;
+  const rows = Math.ceil(height / th) + 1;
+  const h = rows * th;
+  const r = (n: number) => Math.round(n * 100) / 100;
+  let hatch = "";
+  for (let x = -h; x <= width; x += 10 * k) hatch += `M${r(x)} 0l${r(h)} ${r(h)}`;
+  let marks = "";
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < across; col++) {
+      for (const [cx, cy] of [[35, 21], [105, 61]]) {
+        marks += `<use href="#wm-mark" transform="translate(${r(col * tw + cx * k)} ${r(row * th + cy * k)}) rotate(-20) scale(${r(k)})"/>`;
+      }
+    }
+  }
+  return (
+    `<svg class="wm" width="${r(width)}" height="${r(h)}" viewBox="0 0 ${r(width)} ${r(h)}" aria-hidden="true">` +
+    `<defs><path id="wm-mark" d="${MARK_PATH}" fill="${MARK}"/></defs>` +
+    `<path d="${hatch}" stroke="${HATCH}" stroke-width="${r(0.9 * k)}" fill="none"/>${marks}</svg>`
+  );
+}
+
+/** Filler that takes the blank space left on a page / in an index column. */
+function voidHtml(width: number, across: number, free: number): string {
+  return `<div class="void">${free >= MIN_VOID ? watermarkSvg(width, across, free) : ""}</div>`;
+}
+
 const STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -153,6 +210,12 @@ const STYLES = `
   td.pl { color: #666; font-size: 7pt; }
   td.rate { text-align: right; color: #8B0000; font-weight: 700; white-space: nowrap; }
 
+  /* Blank space → watermark. Size containment means the filler never adds to the
+     content height (pagination and the overflow check are unaffected); it just
+     takes whatever room is left and clips the watermark to it. */
+  .void { flex: 1 1 0; container-type: size; overflow: hidden; }
+  .void .wm { display: block; }
+
   .foot {
     margin-top: auto; display: flex; justify-content: space-between; align-items: center;
     border-top: .6pt solid #8B0000; padding-top: 3pt; font-size: 6.5pt; color: #777;
@@ -168,6 +231,10 @@ const STYLES = `
   .idx-title .pg { margin-left: auto; font-size: 7pt; font-weight: 700; color: #8B0000; letter-spacing: 1pt; }
   .idx-cols { display: flex; gap: 14pt; align-items: flex-start; }
   .idx-col { flex: 1 1 0; min-width: 0; }
+  /* On real index pages the columns stretch to the footer so the space under
+     the last entry of each column can carry the watermark. */
+  .page .idx-cols { flex: 1 1 auto; align-items: stretch; }
+  .page .idx-col { display: flex; flex-direction: column; }
   .idx-row { display: flex; align-items: center; gap: 5pt; padding: 2.3pt 0; border-bottom: .4pt solid #eee; }
   .idx-row .num { flex: 0 0 auto; font-size: 6.5pt; font-weight: 800; color: #8B0000; background: #f4e1e4; border-radius: 2pt; padding: 1.5pt 3pt; }
   .idx-row .cat { flex: 1 1 auto; min-width: 0; font-size: 7.2pt; line-height: 1.3; color: #222; overflow-wrap: break-word; }
@@ -288,11 +355,12 @@ export function layoutCatalogue(groups: Group[], m: Metrics): Layout {
   // A hair of slack absorbs sub-pixel rounding between measuring and printing.
   const AVAIL = m.avail - 1.5;
   const pages: Page[] = [];
-  let cur: Page = { number: 1, blocks: [] };
+  let cur: Page = { number: 1, blocks: [], free: 0 };
   let used = 0;
   const flush = () => {
+    cur.free = Math.max(0, AVAIL - used);
     pages.push(cur);
-    cur = { number: cur.number + 1, blocks: [] };
+    cur = { number: cur.number + 1, blocks: [], free: 0 };
     used = 0;
   };
   const index: IndexEntry[] = [];
@@ -326,12 +394,14 @@ export function layoutCatalogue(groups: Group[], m: Metrics): Layout {
     }
     index.push({ n: gi + 1, category: g.category, from, to, h: m.idx[gi] });
   });
-  if (cur.blocks.length) pages.push(cur);
+  if (cur.blocks.length) flush();
 
   // Index: fill the left column, then the right, then a new page.
   const IDX_AVAIL = m.idxAvail - 1.5;
   const indexPages: IndexEntry[][][] = [];
+  const indexFree: number[][] = [];
   let page: IndexEntry[][] = [[], []];
+  let free = [IDX_AVAIL, IDX_AVAIL];
   let col = 0;
   let colUsed = 0;
   for (const e of index) {
@@ -340,16 +410,22 @@ export function layoutCatalogue(groups: Group[], m: Metrics): Layout {
       colUsed = 0;
       if (col > 1) {
         indexPages.push(page);
+        indexFree.push(free);
         page = [[], []];
+        free = [IDX_AVAIL, IDX_AVAIL];
         col = 0;
       }
     }
     page[col].push(e);
     colUsed += e.h;
+    free[col] = Math.max(0, IDX_AVAIL - colUsed);
   }
-  if (page[0].length) indexPages.push(page);
+  if (page[0].length) {
+    indexPages.push(page);
+    indexFree.push(free);
+  }
 
-  return { pages, index, indexPages };
+  return { pages, index, indexPages, indexFree };
 }
 
 function pageRange(e: IndexEntry): string {
@@ -358,13 +434,14 @@ function pageRange(e: IndexEntry): string {
 
 // ── 3. Final pages ───────────────────────────────────────────────────────────
 
-function indexPagesHtml(indexPages: IndexEntry[][][], code?: string): string {
+function indexPagesHtml(indexPages: IndexEntry[][][], indexFree: number[][], code?: string): string {
   return indexPages
-    .map((cols) => {
-      const col = (entries: IndexEntry[]) =>
-        `<div class="idx-col">${entries.map((e) => idxRowHtml(e.n, e.category, pageRange(e))).join("")}</div>`;
+    .map((cols, pi) => {
+      const col = (entries: IndexEntry[], ci: number) =>
+        `<div class="idx-col">${entries.map((e) => idxRowHtml(e.n, e.category, pageRange(e))).join("")}` +
+        `${voidHtml(INDEX_COL_W, 2, indexFree[pi][ci])}</div>`;
       return `<section class="page">${indexHeadHtml()}
-        <div class="idx-cols">${col(cols[0])}${col(cols[1])}</div>
+        <div class="idx-cols">${col(cols[0], 0)}${col(cols[1], 1)}</div>
         <div class="idx-foot"><span class="code">${codeTag(code)}</span><span>${PRICE_LIST_LABEL}</span></div>
       </section>`;
     })
@@ -378,7 +455,7 @@ function cataloguePagesHtml(pages: Page[], currency: string, code?: string): str
         .map((b) => barHtml(b.category, b.continued) + b.rows.map((r) => rowHtml(r.sno, r.name, r.pagesLeaves, r.price, currency)).join(""))
         .join("");
       return `<section class="page">${brandHtml()}
-        <table>${COLGROUP}${THEAD}<tbody>${rowsHtml}</tbody></table>
+        <table>${COLGROUP}${THEAD}<tbody>${rowsHtml}</tbody></table>${voidHtml(PAGE_INNER_W, 5, pg.free)}
         <div class="foot"><span>Available at : Maaef Enterprises</span><span class="c">${codeTag(code)}</span><span class="r">PAGE ${pg.number}</span></div>
       </section>`;
     })
@@ -391,7 +468,7 @@ function cataloguePagesHtml(pages: Page[], currency: string, code?: string): str
  * back to its creator.
  */
 export function buildCatalogueHtml(layout: Layout, currency: string, fontCss: string, code?: string): string {
-  return doc(fontCss, indexPagesHtml(layout.indexPages, code) + cataloguePagesHtml(layout.pages, currency, code));
+  return doc(fontCss, indexPagesHtml(layout.indexPages, layout.indexFree, code) + cataloguePagesHtml(layout.pages, currency, code));
 }
 
 /**
