@@ -40,8 +40,17 @@ export type Metrics = {
   idx: number[]; // per group's index entry
 };
 
-/** indexFree mirrors indexPages: blank height (px) under each index column. */
-export type Layout = { pages: Page[]; index: IndexEntry[]; indexPages: IndexEntry[][][]; indexFree: number[][] };
+/**
+ * indexFree mirrors indexPages: blank height (px) under each index column.
+ * indexStretch: the page's rows are spread to fill the page (no blank space).
+ */
+export type Layout = {
+  pages: Page[];
+  index: IndexEntry[];
+  indexPages: IndexEntry[][][];
+  indexFree: number[][];
+  indexStretch: boolean[];
+};
 
 /** Shown top-right of every priced page and on the index footer. */
 export const PRICE_LIST_LABEL = "PRICE LIST 2026-27";
@@ -237,6 +246,9 @@ const STYLES = `
   .idx-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14pt; }
   .idx-voids { flex: 1 1 0; display: flex; gap: 14pt; min-height: 0; }
   .idx-voids .void { flex: 1 1 0; }
+  /* Stretched page: the grid takes the full height and its auto rows share the
+     extra space equally (align-content: stretch); entries stay centred. */
+  .idx-paired.stretch .idx-grid { flex: 1 1 auto; align-content: stretch; }
   .idx-row { display: flex; align-items: center; gap: 5pt; padding: 2.3pt 0; border-bottom: .4pt solid #eee; }
   .idx-row .num { flex: 0 0 auto; font-size: 6.5pt; font-weight: 800; color: #8B0000; background: #f4e1e4; border-radius: 2pt; padding: 1.5pt 3pt; }
   .idx-row .cat { flex: 1 1 auto; min-width: 0; font-size: 7.2pt; line-height: 1.3; color: #222; overflow-wrap: break-word; }
@@ -411,6 +423,7 @@ export function layoutCatalogue(groups: Group[], m: Metrics): Layout {
   };
   const indexPages: IndexEntry[][][] = [];
   const indexFree: number[][] = [];
+  const indexStretch: boolean[] = [];
   for (let start = 0; start < index.length; ) {
     let k = 1;
     while (start + k < index.length && paired(index.slice(start, start + k + 1)) <= IDX_AVAIL) k += 1;
@@ -419,10 +432,14 @@ export function layoutCatalogue(groups: Group[], m: Metrics): Layout {
     indexPages.push([es.slice(0, half), es.slice(half)]);
     const left = Math.max(0, IDX_AVAIL - paired(es));
     indexFree.push([left, left]);
+    // Spread the rows over the whole page — unless it is a short last page
+    // (e.g. a few entries spilling onto page 2), where stretching would look
+    // odd; that page keeps its blank space, watermarked.
+    indexStretch.push(left <= IDX_AVAIL * 0.35);
     start += k;
   }
 
-  return { pages, index, indexPages, indexFree };
+  return { pages, index, indexPages, indexFree, indexStretch };
 }
 
 function pageRange(e: IndexEntry): string {
@@ -431,7 +448,7 @@ function pageRange(e: IndexEntry): string {
 
 // ── 3. Final pages ───────────────────────────────────────────────────────────
 
-function indexPagesHtml(indexPages: IndexEntry[][][], indexFree: number[][], code?: string): string {
+function indexPagesHtml(indexPages: IndexEntry[][][], indexFree: number[][], indexStretch: boolean[], code?: string): string {
   return indexPages
     .map((cols, pi) => {
       const [left, right] = cols;
@@ -439,9 +456,11 @@ function indexPagesHtml(indexPages: IndexEntry[][][], indexFree: number[][], cod
       let grid = "";
       for (let i = 0; i < left.length; i++) grid += cell(left[i]) + cell(right[i]);
       const free = indexFree[pi][0];
+      const below = indexStretch[pi]
+        ? ""
+        : `<div class="idx-voids">${voidHtml(INDEX_COL_W, 2, free)}${voidHtml(INDEX_COL_W, 2, free)}</div>`;
       return `<section class="page">${indexHeadHtml()}
-        <div class="idx-cols idx-paired"><div class="idx-grid">${grid}</div>
-          <div class="idx-voids">${voidHtml(INDEX_COL_W, 2, free)}${voidHtml(INDEX_COL_W, 2, free)}</div></div>
+        <div class="idx-cols idx-paired${indexStretch[pi] ? " stretch" : ""}"><div class="idx-grid">${grid}</div>${below}</div>
         <div class="idx-foot"><span class="code">${codeTag(code)}</span><span>${PRICE_LIST_LABEL}</span></div>
       </section>`;
     })
@@ -468,7 +487,7 @@ function cataloguePagesHtml(pages: Page[], currency: string, code?: string): str
  * back to its creator.
  */
 export function buildCatalogueHtml(layout: Layout, currency: string, fontCss: string, code?: string): string {
-  return doc(fontCss, indexPagesHtml(layout.indexPages, layout.indexFree, code) + cataloguePagesHtml(layout.pages, currency, code));
+  return doc(fontCss, indexPagesHtml(layout.indexPages, layout.indexFree, layout.indexStretch, code) + cataloguePagesHtml(layout.pages, currency, code));
 }
 
 /**
